@@ -1,0 +1,288 @@
+#+TITLE: lecture 2: optimizing serial code
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: september 9 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+https://mitmath.github.io/18337/lecture2/optimizing
+
+* row-major
+  memory in julia (/ matlab / fortran / ...) is *column-major*; numpy and c are row-major.
+
+#+BEGIN_SRC julia :session jl :async yes
+A = rand(100,100)
+B = rand(100,100)
+C = rand(100,100)
+
+using BenchmarkTools
+
+# will be slow, scattered accesses
+function inner_rows!(C,A,B)
+  for i in 1:100, j in 1:100
+    C[i,j] = A[i,j] + B[i,j]
+  end
+end
+println("rows:")
+@btime inner_rows!(C,A,B)
+
+# will be fast, local accesses
+function inner_cols!(C,A,B)
+  for j in 1:100, i in 1:100
+    C[i,j] = A[i,j] + B[i,j]
+  end
+end
+println("cols:")
+@btime inner_cols!(C,A,B)
+#+END_SRC
+
+#+RESULTS:
+: rows:
+:   14.390 μs (0 allocations: 0 bytes)
+: cols:
+:   9.734 μs (0 allocations: 0 bytes)
+
+* types + compilation
+has local type inference
+
+untyped function is interpreted as *generic function* over possible *methods* --
+method is a concrete instantiation
+
+there's type promotion as well
+
+type stability is important: always return the same types (in hot code)
+
+specialization:
+
+#+BEGIN_SRC julia :session jl :async yes
+f(x,y) = x+y
+using InteractiveUtils
+@code_llvm f(2,5)
+@code_llvm f(2.0,5.0)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+
+;  @ In[2]:1 within `f'
+define i64 @julia_f_16358(i64, i64) {
+top:
+; ┌ @ int.jl:53 within `+'
+   %2 = add i64 %1, %0
+; └
+  ret i64 %2
+}
+
+;  @ In[2]:1 within `f'
+define double @julia_f_16363(double, double) {
+top:
+; ┌ @ float.jl:395 within `+'
+   %2 = fadd double %0, %1
+; └
+  ret double %2
+}
+#+end_example
+
+whether types are pointers or not is inferred from composition:
+
+#+BEGIN_SRC julia :session jl :async yes
+isbits(1.0)
+#+END_SRC
+
+#+RESULTS:
+: true
+
+primitive or `isbits` types are not pointers
+
+generics:
+
+#+BEGIN_SRC julia :session jl :async yes
+struct MyParameterizedComplex{T}
+  real::T
+  imag::T
+end
+println("isbits", isbits(MyParameterizedComplex(1.0,1.0)))
+
+Base.:+(a::MyParameterizedComplex,b::MyParameterizedComplex) = MyParameterizedComplex(a.real+b.real,a.imag+b.imag)
+Base.:+(a::MyParameterizedComplex,b::Int) = MyParameterizedComplex(a.real+b,a.imag)
+Base.:+(b::Int,a::MyParameterizedComplex) = MyParameterizedComplex(a.real+b,a.imag)
+
+println("complex + int: ")
+@code_llvm MyParameterizedComplex(0,1) + 1
+@code_native MyParameterizedComplex(0,1) + 1
+println()
+println("complex + complex: ")
+@code_llvm MyParameterizedComplex(0,1) + MyParameterizedComplex(3,4)
+@code_native MyParameterizedComplex(0,1) + MyParameterizedComplex(3,4)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+isbitstrue
+complex + int:
+
+;  @ In[10]:8 within `+'
+define void @"julia_+_16730"({ i64, i64 }* noalias nocapture sret, { i64, i64 } addrspace(11)* nocapture nonnull readonly dereferenceable(16), i64) {
+top:
+; ┌ @ Base.jl:20 within `getproperty'
+   %3 = getelementptr inbounds { i64, i64 }, { i64, i64 } addrspace(11)* %1, i64 0, i32 0
+; └
+;  @ In[10]:8 within `+' @ int.jl:53
+  %4 = load i64, i64 addrspace(11)* %3, align 8
+  %5 = add i64 %4, %2
+;  @ In[10]:8 within `+'
+; ┌ @ Base.jl:20 within `getproperty'
+   %6 = getelementptr inbounds { i64, i64 }, { i64, i64 } addrspace(11)* %1, i64 0, i32 1
+; └
+; ┌ @ In[10]:2 within `Type' @ In[10]:2
+   %7 = load i64, i64 addrspace(11)* %6, align 8
+; └
+  %.sroa.0.0..sroa_idx = getelementptr inbounds { i64, i64 }, { i64, i64 }* %0, i64 0, i32 0
+  store i64 %5, i64* %.sroa.0.0..sroa_idx, align 8
+  %.sroa.2.0..sroa_idx1 = getelementptr inbounds { i64, i64 }, { i64, i64 }* %0, i64 0, i32 1
+  store i64 %7, i64* %.sroa.2.0..sroa_idx1, align 8
+  ret void
+}
+	.text
+; ┌ @ In[10]:8 within `+' @ In[10]:8
+	addq	(%rsi), %rdx
+; │ @ In[10]:8 within `+'
+; │┌ @ In[10]:2 within `Type' @ In[10]:2
+	movq	8(%rsi), %rax
+; │└
+	movq	%rdx, (%rdi)
+	movq	%rax, 8(%rdi)
+	movq	%rdi, %rax
+	retq
+	nopw	%cs:(%rax,%rax)
+; └
+
+complex + complex:
+
+;  @ In[10]:7 within `+'
+define void @"julia_+_16733"({ i64, i64 }* noalias nocapture sret, { i64, i64 } addrspace(11)* nocapture nonnull readonly dereferenceable(16), { i64, i64 } addrspace(11)* nocapture nonnull readonly dereferenceable(16)) {
+top:
+;  @ In[10]:7 within `+' @ int.jl:53
+  %3 = bitcast { i64, i64 } addrspace(11)* %1 to <2 x i64> addrspace(11)*
+  %4 = load <2 x i64>, <2 x i64> addrspace(11)* %3, align 8
+  %5 = bitcast { i64, i64 } addrspace(11)* %2 to <2 x i64> addrspace(11)*
+  %6 = load <2 x i64>, <2 x i64> addrspace(11)* %5, align 8
+  %7 = add <2 x i64> %6, %4
+;  @ In[10]:7 within `+'
+  %8 = bitcast { i64, i64 }* %0 to <2 x i64>*
+  store <2 x i64> %7, <2 x i64>* %8, align 8
+  ret void
+}
+	.text
+; ┌ @ In[10]:7 within `+' @ In[10]:7
+	vmovdqu	(%rdx), %xmm0
+	vpaddq	(%rsi), %xmm0, %xmm0
+; │ @ In[10]:7 within `+'
+	vmovdqu	%xmm0, (%rdi)
+	movq	%rdi, %rax
+	retq
+; └
+#+end_example
+
+can define types without type info, but slows everything down:
+
+#+BEGIN_SRC julia :session jl :async yes
+struct MySlowComplex
+  real
+  imag
+end
+isbits(MySlowComplex(1.0,1.0))
+#+END_SRC
+
+#+RESULTS:
+: false
+
+can force specialization, i.e. call static dispatch behind dynamic dispatch:
+
+#+BEGIN_SRC julia :session jl :async yes
+x = Number[1.0,3]
+function r(x)
+  a = 4
+  b = 2
+  for i in 1:100
+    c = f(x[1],a)
+    d = f(b,c)
+    a = f(d,x[2])
+  end
+  a
+end
+s(x) = _s(x[1],x[2])
+function _s(x1,x2)
+  a = 4
+  b = 2
+  for i in 1:100
+    c = f(x1,a)
+    d = f(b,c)
+    a = f(d,x2)
+  end
+  a
+end
+print("un-specialized:")
+@btime r(x)
+print("specialized:")
+@btime s(x)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: un-specialized:  5.713 μs (300 allocations: 4.69 KiB)
+: specialized:  435.510 ns (1 allocation: 16 bytes)
+: 604.0
+:END:
+
+* individual operations
+- simple arithmetic: 1 cycle, <= 1 ns
+- branch prediction: correct 1-2 cycles, mispredict 10-20 cycles
+- function calls: 20-60 cycles
+- RAM reads:
+  from https://stackoverflow.com/questions/4087280/approximate-cost-to-access-various-caches-and-main-memory
+  Core i7 Xeon 5500 Series Data Source Latency (approximate)               [Pg. 22]
+  local  L1 CACHE hit,                              ~4 cycles (   2.1 -  1.2 ns )
+  local  L2 CACHE hit,                             ~10 cycles (   5.3 -  3.0 ns )
+  local  L3 CACHE hit, line unshared               ~40 cycles (  21.4 - 12.0 ns )
+  local  L3 CACHE hit, shared line in another core ~65 cycles (  34.8 - 19.5 ns )
+  local  L3 CACHE hit, modified in another core    ~75 cycles (  40.2 - 22.5 ns )
+  remote L3 CACHE (Ref: Fig.1 [Pg. 5])        ~100-300 cycles ( 160.7 - 30.0 ns )
+  local  DRAM                                                   ~60 ns
+  remote DRAM                                                  ~100 ns
+
+** bounds checking
+#+BEGIN_SRC julia :session jl :async yes
+function inner_noalloc!(C,A,B)
+  for j in 1:100, i in 1:100
+    val = A[i,j] + B[i,j]
+    C[i,j] = val[1]
+  end
+end
+function inner_noalloc_ib!(C,A,B)
+  @inbounds for j in 1:100, i in 1:100
+    val = A[i,j] + B[i,j]
+    C[i,j] = val[1]
+  end
+end
+@btime inner_noalloc!(C,A,B)
+@btime inner_noalloc_ib!(C,A,B)
+#+END_SRC
+
+#+RESULTS:
+:   10.494 μs (0 allocations: 0 bytes)
+:   3.527 μs (0 allocations: 0 bytes)
+
+see @code_llvm for inner_noalloc_ib - autovectorizes, yay LLVM
+
+
+** fma
+LLVM does not insert FMA automatically because it changes results (to be more correct...)
+have to use julia's Base.muladd function, which inserts FMA when it's fast
+MacroMulAdd.jl has macro @muladd to automatically break apart an expression and insert FMAs (they will be generated automatically tho?)
+
+** inlining
+@noinline vs @inline, @inline is automatic for small functions
+
+** benchmarking
+make sure you're not black-boxing away. (@btime will return 0.001 ns if you really fuck up.)

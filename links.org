@@ -1,0 +1,13 @@
+#+TITLE: useful links
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: september 11 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* course
+- https://github.com/mitmath/18337
+- https://mitmath.github.io/18337/
+
+* online
+- https://tutorials.juliadiffeq.org/

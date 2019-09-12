@@ -1,0 +1,130 @@
+#+TITLE: introduction to solving differential equations with julia
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: september 11 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+#+BEGIN_SRC julia :session jl :async yes
+import Pkg; Pkg.add("DifferentialEquations")
+#+END_SRC
+#+BEGIN_SRC julia :session jl :async yes
+import Pkg; Pkg.add("Plots")
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+[32m[1m  Updating[22m[39m registry at `~/.julia/registries/General`
+[32m[1m  Updating[22m[39m git-repo `https://github.com/JuliaRegistries/General.git`
+[?25l[2K[?25h[32m[1m Resolving[22m[39m package versions...
+[32m[1m Installed[22m[39m FFMPEG ────────────── v0.2.2
+[32m[1m Installed[22m[39m BlockBandedMatrices ─ v0.5.0
+[32m[1m Installed[22m[39m BlockArrays ───────── v0.10.0
+[32m[1m Installed[22m[39m Plots ─────────────── v0.26.3
+[32m[1m Installed[22m[39m BandedMatrices ────── v0.11.1
+[32m[1m Installed[22m[39m GeometryTypes ─────── v0.7.6
+[32m[1m Installed[22m[39m PlotUtils ─────────── v0.5.8
+[32m[1m Installed[22m[39m PlotThemes ────────── v0.3.0
+[32m[1m Installed[22m[39m FillArrays ────────── v0.7.0
+[32m[1m Installed[22m[39m LazyArrays ────────── v0.11.0
+[32m[1m Installed[22m[39m GR ────────────────── v0.41.0
+[32m[1m  Updating[22m[39m `~/.julia/environments/v1.2/Project.toml`
+ [90m [91a5bcdd][39m[92m + Plots v0.26.3[39m
+[32m[1m  Updating[22m[39m `~/.julia/environments/v1.2/Manifest.toml`
+ [90m [aae01518][39m[93m ↑ BandedMatrices v0.10.1 ⇒ v0.11.1[39m
+ [90m [8e7c35d0][39m[93m ↑ BlockArrays v0.9.1 ⇒ v0.10.0[39m
+ [90m [ffab5731][39m[93m ↑ BlockBandedMatrices v0.4.6 ⇒ v0.5.0[39m
+ [90m [c87230d0][39m[92m + FFMPEG v0.2.2[39m
+ [90m [1a297f60][39m[93m ↑ FillArrays v0.6.4 ⇒ v0.7.0[39m
+ [90m [28b8d3ca][39m[92m + GR v0.41.0[39m
+ [90m [4d00f742][39m[92m + GeometryTypes v0.7.6[39m
+ [90m [5078a376][39m[93m ↑ LazyArrays v0.10.0 ⇒ v0.11.0[39m
+ [90m [ccf2f8ad][39m[92m + PlotThemes v0.3.0[39m
+ [90m [995b91a9][39m[92m + PlotUtils v0.5.8[39m
+ [90m [91a5bcdd][39m[92m + Plots v0.26.3[39m
+[32m[1m  Building[22m[39m GR ────→ `~/.julia/packages/GR/ZI5OE/deps/build.log`
+[32m[1m  Building[22m[39m FFMPEG → `~/.julia/packages/FFMPEG/9JQpZ/deps/build.log`
+[32m[1m  Building[22m[39m Plots ─→ `~/.julia/packages/Plots/h3o4c/deps/build.log`
+#+end_example
+
+* basic introduction via ODEs
+corresponding docs: http://docs.juliadiffeq.org/latest/tutorials/ode_example.html
+
+have *IVP*:
+
+$$\frac{du}{dt} = f(u, p, t)$$
+
+where $u$ is a (multivariate) variable, $p$ is model parameters, $t$ is time.
+
+** first model: exponential growth
+
+$$u' = au$$
+$$u(0)=u_0$$
+
+specifically:
+
+$$a = 0.98$$
+$$u_0 = 1.0$$
+
+#+BEGIN_SRC julia :session jl :async yes
+using DifferentialEquations
+f(u,p,t) = 0.98u
+u0 = 1.0
+tspan = (0.0,1.0)
+prob = ODEProblem(f,u0,tspan)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: ┌ Info: Precompiling DifferentialEquations [0c46a032-eb83-5123-abaf-570d42b7fbaa]
+: └ @ Base loading.jl:1242
+: [36mODEProblem[0m with uType [36mFloat64[0m and tType [36mFloat64[0m. In-place: [36mfalse[0m
+: timespan: (0.0, 1.0)
+: u0: 1.0
+:END:
+
+to solve:
+#+BEGIN_SRC julia :session jl :async yes
+sol = solve(prob)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+retcode: Success
+Interpolation: Automatic order switching interpolation
+t: 5-element Array{Float64,1}:
+ 0.0
+ 0.10042494449239292
+ 0.35218555997054785
+ 0.6934428593452983
+ 1.0
+u: 5-element Array{Float64,1}:
+ 1.0
+ 1.1034222047865465
+ 1.4121902211481592
+ 1.9730369899955797
+ 2.664456142481388
+#+end_example
+
+solution has `t`, `u`, but also interpolation and return code.
+
+plot it:
+
+#+BEGIN_SRC julia :session jl :async yes
+using Plots; gr()
+plot(sol,linewidth=5,title="Solution to the linear ODE with a thick line",
+     xaxis="Time (t)",yaxis="u(t) (in μm)",label="My Thick Line!") # legend=false
+plot!(sol.t, t->1.0*exp(0.98t),lw=3,ls=:dash,label="True Solution!")
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+# [goto error]
+: ArgumentError: Package Plots not found in current path:
+: - Run `import Pkg; Pkg.add("Plots")` to install the Plots package.
+:
+:
+: Stacktrace:
+:  [1] require(::Module, ::Symbol) at ./loading.jl:876
+:  [2] top-level scope at In[4]:1
+:END:

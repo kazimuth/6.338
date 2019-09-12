@@ -1,0 +1,173 @@
+#+TITLE: lecture 3: supercomputing
+#+AUTHOR: James Gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: September 11 2019
+#+OPTIONS: tex:t latex:t
+
+https://mitmath.github.io/18337/lecture3/TX-E1_Reference_Guide_020819.pdf
+https://supercloud.mit.edu/getting-started
+https://github.com/llsc-supercloud/teaching-examples
+
+ssh jhgilles@txe1-login.mit.edu
+https://txe1-portal.mit.edu/
+
+* policies
+- files are not backed up
+- DOWNTIME for maintenance all day on 3rd thursday of every month
+
+* tools
+
+** check system status
+ LLGrid_status [opteron | xeon-e5 | gpu | all]
+ LLfree
+Monitor Your Job
+ LLstat
+Stop Your Job
+ LLkill [options] <job_id_list>
+job_id_list Comma separated list of job number(s)
+Options:
+  --version          Show program’s version number and exit-h,
+  --help             Show this help message and exit
+  -t <task_list>     Specify selected job array elements to delete
+                     task_list syntax: start[-end[:step]]
+  -u <username>      Delete all jobs owned by username
+                     No effect if job_id_list is specified
+
+** uploading files
+use rsync or scp
+
+scp [-rv] <src> <user>@txe1-login.mit.edu:<dest>
+
+-r recursive
+-v verbose
+
+rsync [-rlugv] <src> <user>@txe1-login. mit.edu:<dest>
+
+-r Recursively copy files in all subdirectories
+-l Copy and retain symbolic links
+-u Skip files that are newer on the LLSC system
+-g Preserve group attributes (use with shared groups)
+-v Verbose
+** slurm
+native slurm commands work
+** LLsub
+LLGrid wrapper script to submit a batch job or get an interactive session
+
+ Usage: LLsub command [N] [options] [-- command_args]
+        LLsub -i [full|-s slots_per_task|-N num_Nodes] [--x11] [--resv-ports count] (interactive session only) [options]
+
+   command            Specify the program file to execute
+   N                  Specify the requested number of tasks or processes
+
+ Options:
+   -h                 Show this helper message.
+   -V                 Show the version number.
+   -c CPU_type        Request the nodes with the specified CPU type.
+   -g gpuName:count   Request the specified GPU resources. count should be 2 or 4. (example: -g tesla:2)
+   -i [full]          Request an interactive session [with an exclusive node
+                      access by specifying 'full'].
+  --x11               Enable X11 forwarding for interactive session.
+   -J job_name        Assigns the specified name to the job.
+                      The job name does not need to be unique.
+   -N num_nodes       Number of nodes to allocate (interactive job only)
+   -o log_file        Specify a file path. Appends the standard output of the
+                      job to the specified file.
+   -q queue_name      Specify a queue name to which a job is submitted.
+   -Q QoS             Specify a QoS for the job.
+   -r adv_res_name    Specify an advanced reservation name to which a job is submitted.
+                      (requires LLSC coordination)
+  --resv-ports count  Reserve communication ports for this job. (interactive job only)
+   -s slots_per_task  Specify a number of CPUs allocated per each task.
+   -t task_list       Specify tasks of an array job starting from a user-defined task ID.
+                      The syntax is start[-end[:step]] or a comma-separated task list [t1,t2,t3].
+   -T time_limit      Set a limit on the total run time of the job allocation.
+                      Acceptable formats: 'minutes', 'hours:minutes:seconds', 'days-hours', 'days-hours:minutes'
+   -w job_number |    Define the job dependency list of the submitted job.
+      job_name
+
+ Option for MPI parallel jobs:
+   -a mpi             Specify that the command is an MPI application.
+                      The mpirun command will be selected from your PATH.
+
+ If you need any other options, please send
+ your requirement to llsc-help@ll.mit.edu.
+
+** LLMapReduce
+LLMapReduce
+Usage: LLMapReduce [options]
+
+Options:
+  --version             show program's version number and exit
+  -h, --help            show this help message and exit
+  --np=NPROCS           Number of processes to run concurrently. Without
+                        --ndata, all data will be evenly distributed to the
+                        given number of processes.
+  --ndata=NDATAPERTASK  Number of input data to be processed per task for fine
+                        control, The default value is one. You may want to use
+                        the --np option instead if you want to distribute the
+                        entire work load to the given nProcs processes by the
+                        --np option.
+  --distribution=DATADIST
+                        Distribution rule for the data, block or cyclic.
+                        Default is block.
+  --mapper=MYMAPPER     Specify the mapper program to execute.
+  --input=INPATH        Specify a path where the input files are or a file
+                        containing the list of the input files.
+  --output=OUTDIRPATH   Specify a directory path where the output files to be
+                        saved.
+  --prefix=PREFIXFILENAME
+                        Specify a string to be prefixed to output file name.
+  --subdir=USESUBDIR    Specify true if data is located at sub-directories.
+                        All the data under the input directory will be scanned
+                        recursively. The same sub-directory structure will be
+                        maintained under the output directory. Default is
+                        false.
+  --ext=OUTEXTENSION    Specify a file extension for the output. Default is
+                        out. Use noext if no extension is preferred.
+  --extSearch=SEARCHEXTENSION
+                        Specify a file extension when searching input files
+                        with the --subdir option.
+  --delimeter=OUTDELIMETER
+                        Specify a file extension delimeter for the output.
+                        Default is the dot(.)
+  --exclusive=EXCLUSIVEMODE
+                        Turn on the exclusive mode (true/false). The default
+                        is false.
+  --reducer=MYREDUCER   Specify the reducer program to execute.
+  --redout=REDOUTFILENAME
+                        Output filename for the reducer [optional].
+  --changeDepMode=DEPENDENCYMODE
+                        Change the dependency mode. By default, the reduce job
+                        starts only when all mapper tasks are completed
+                        successfully. The alternative behavior
+                        (--changeDepMode=true) lets the reduce job start when
+                        the mapper job terminates regardless of its exit
+                        status.
+  --keep=KEEPTEMPDIR    Decide whether or not to keep the temporary
+                        .MATPRED.PID dirctory (true/false). The default is
+                        false.
+  --apptype=APPLICATIONTYPE
+                        If your application can take multiple lines of input
+                        and output format, set apptype=mimo. By default, your
+                        application takes one line of input and output (siso).
+  --cpuType=CPUTYPE     Request compute nodes with a specific CPU type
+                        [optional].
+  --gpuNameCount=GPUNAMECOUNT
+                        Specify the GPU name and number of counts to be used
+                        for each task as GPU_NAME:COUNT. Currently each node
+                        has 4 tesla (K80) units.
+  --slotsPerTask=SLOTSPERTASK
+                        Specify the number of slots(cores) per task. Default
+                        value is 1 [optional].
+  --slotsPerTaskType=SLOTSPERTASKTYPE
+                        Specify how the number of slots(cores) per task be
+                        applied. Default value is 1 [Map only], Other options
+                        are 2 [Both Map and Reduce] and 3 [Reduce only].
+  --reservation=ADV_RES_NAME
+                        Specify an advanced reservation name to which a job is
+                        submitted (requires LLSC coordination).
+  --tempdir=TEMPDIR     Specify a temporary directory which replaces the
+                        default MAPRED.PID directory.
+  --options=SCHEDOPTIONS
+                        If you want to add additional scheduler options,
+                        define them with --options as a single string.

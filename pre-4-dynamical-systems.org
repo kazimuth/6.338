@@ -1,32 +1,40 @@
-# Introduction to Continuous Dynamics General Linear Behavior and the Linearization of Nonlinear Systems By Chris Rackauckas
+#+TITLE: lecture 3: supercomputing
+#+AUTHOR: James Gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: September 11 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* Introduction to Continuous Dynamics General Linear Behavior and the Linearization of Nonlinear Systems By Chris Rackauckas
 abstract:
     linear systems: completely determined by eigenvalues of matrix of coefficients
     Stable Manifold + Hartman Grobman theorems: linearize nonlinear systems to understand
     applications
 
-X = (x1 ... xn)^T
+$X = (x_1 ... x_n)^T$
 system of differential equations for X:
-    X' = F(t, X) = (f1(x1 .. xn) .. fn (x1 .. xn))^T
+    $X' = F(t, X) = (f_1(x_1 .. x_n) .. f_n (x_1 .. x_n))^T$
 
-* we're discussing a single vector in a phase space, not a field
+autonote: we're discussing a single vector in a phase space, not a field
 
 autonomous systems (no explicit time dependence):
-    F(t, X) denoted F(X)
+    $F(t, X)$ denoted $F(X)$
 
-solution X(t) to the system satisfies X'(t) = F(X(t))
+solution $X(t)$ to the system satisfies $X'(t) = F(X(t))$
     intuitive sense: derivative of solution must correspond plugging solution into system of difeqs
     pick a starting point, have behavior of system for all time
 
-flow: \phi : R x R -> R
-    \phi(t, X0) is the coordinates of the object that started at X0 at time t
+flow: $\phi : \mathbb{R} \times \mathbb{R} \to \mathbb{R}$
+    $\phi(t, X_0)$ is the coordinates of the object that started at X_0 at time t
 
-Equilibrium point X0: F(X0) = 0
+Equilibrium point $X_0: F(X_0) = 0$
 Any time a system gets to an equilibrium point, it will stay there forever.
 
 To understand systems, understand equilibrium
 Different types of behavior around equilibrium for linear systems
 
-linear system: each f_i can be written as a linear combination of the variables, f_i(X) = ai1 x1 + ... + xin xn
+linear system: each $f_i$ can be written as a linear combination of the variables,
+    $f_i(X) = a_{i1} x_1 + ... + a_{in} x_n$
     more intuitively: define matrix A = ( (a11 .. an1)^T ... (a1n .. ann)^T )
     powerful formulation
 
@@ -34,7 +42,7 @@ exponential of a matrix: for nxn matrix , [equation i dont wanna write]
 
 theorem: let A: nxn; then unique solution of IVP X' = AX with X(0) = X0 is `X(t) = e^{At} X0`
 
-* where At is matrix scaling?
+note: where At is matrix scaling?
 
 proposition: if det A != 0, a unique equilibrium point exists
     because equilibrium point X0 has `A X0 = 0`, has unique solution when `det A != 0`
@@ -47,18 +55,14 @@ theorem: suppose V1 .. Vn linearly independent eigenvectors, \l1 .. \ln eigenval
 
 because: write matrix in eigenbasis {V1,...,Vn} to obtain diagonalized matrix of eigenvalues. guess solution, check, hey it works.
 
-* "write matrix in eigenbasis": what does that mean?
+note: "write matrix in eigenbasis": what does that mean?
 
 ... close reading ends
 
-* note: eigenvectors of rotation matrix are complex (but must always give real outputs for real matrix)
+note: eigenvectors of rotation matrix are complex (but must always give real outputs for real matrix)
 
-* imagine 1x1 matrix with negative value: flips inputs backwards! eigenvector 1, eigenvalue -1
+note: imagine 1x1 matrix with negative value: flips inputs backwards! eigenvector 1, eigenvalue -1
 
 don't want repeated eigenvalues...
 
 "most"  matrices have distinct eigenvalues...
-
-
-
-
