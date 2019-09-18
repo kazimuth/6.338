@@ -1,0 +1,118 @@
+#+TITLE: julia xarray impl notes
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: september 16 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* links
+https://github.com/JuliaArrays/AxisArrays.jl
+
+** julia docs
+*** type stuff
+https://docs.julialang.org/en/v1/manual/performance-tips/#Types-with-values-as-parameters-1
+https://docs.julialang.org/en/v1/manual/types/#Parametric-Types-1
+https://docs.julialang.org/en/v1/manual/types/#%22Value-types%22-1
+https://docs.julialang.org/en/v1/manual/constructors/
+
+*** UX
+https://docs.julialang.org/en/v1/base/io-network/#Multimedia-I/O-1
+https://docs.julialang.org/en/v1/manual/types/#man-custom-pretty-printing-1
+https://docs.julialang.org/en/v1/manual/conversion-and-promotion/#Promotion-1
+https://docs.julialang.org/en/v1/manual/interfaces/
+https://docs.julialang.org/en/v1/manual/metaprogramming/index.html
+
+*** broadcasting
+https://docs.julialang.org/en/v0.6/manual/arrays/#Broadcasting-1
+so: need to line up names to broadcast things
+https://github.com/JuliaLang/julia/blob/master/base/broadcast.jl
+
+** discussions
+https://discourse.julialang.org/t/custom-indexing-for-a-named-array/20014
+
+** possibly useful things
+https://github.com/mcabbott/TensorCast.jl
+https://github.com/ahwillia/Einsum.jl
+https://github.com/c42f/FastClosures.jl
+https://github.com/FluxML/Flux.jl
+
+** python
+http://xarray.pydata.org/en/stable/
+https://github.com/harvardnlp/NamedTensor
+(sorta) http://holoviews.org/
+
+* prototype
+
+#+BEGIN_SRC julia :session jl :async yes
+struct NamedArray{T, N, Names, Arr <: AbstractArray{T, N}} <: AbstractArray{T, N}
+    arr :: Arr
+    NamedArray(names::Tuple{Vararg{Symbol, N}}, arr :: Arr) where {T,N,Arr <: AbstractArray{T, N}} = begin
+        new{T, N, names, Arr}(arr)
+    end
+end
+Base.size(A :: NamedArray) = size(A.arr)
+Base.IndexStyle(:: NamedArray) = IndexCartesian()
+#@inline Base.getindex(A :: NamedArray{T, N, Names, Arr}, I::Vararg{Int, N}) where {T, N, Names, Arr} =
+#    Base.getindex(A.arr, I...)
+@inline Base.getindex(A :: NamedArray{T, N, Names, Arr}, I) where {T, N, Names, Arr} =
+    Base.getindex(A.arr, I...)
+#@inline Base.setindex!(A :: NamedArray{T, N, Names, Arr}, v, I::Vararg{Int, N}) where {T, N, Names, Arr} =
+#    Base.setindex!(A.arr, v, I...)
+@inline Base.setindex!(A :: NamedArray{T, N, Names, Arr}, v, I) where {T, N, Names, Arr} =
+    Base.setindex!(A.arr, v, I...)
+
+test = NamedArray((:time, :index), [1 2; 3 4])
+
+test[1:2, 3:4]
+
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+# [goto error]
+: BoundsError: attempt to access 2×2 NamedArray{Int64,2,(:time, :index),Array{Int64,2}} at index [1:2, 3:4]
+:
+: Stacktrace:
+:  [1] throw_boundserror(::NamedArray{Int64,2,(:time, :index),Array{Int64,2}}, ::Tuple{UnitRange{Int64},UnitRange{Int64}}) at ./abstractarray.jl:538
+:  [2] checkbounds at ./abstractarray.jl:503 [inlined]
+:  [3] _getindex at ./multidimensional.jl:669 [inlined]
+:  [4] getindex(::NamedArray{Int64,2,(:time, :index),Array{Int64,2}}, ::UnitRange{Int64}, ::UnitRange{Int64}) at ./abstractarray.jl:981
+:  [5] top-level scope at In[1]:19
+:END:
+
+this is neat!
+extensions:
+- non-symbol dimensions to avoid confusion between libraries.
+- metadata on dimensions, output name.
+- custom dimension grids like holoviews (how does julia implement that?)
+
+#+BEGIN_SRC julia :session jl :async yes :display plain
+Base.size(A :: NamedArray) = size(A.arr)
+Base.IndexStyle(:: NamedArray) = IndexCartesian()
+Base.getindex(A :: NamedArray{T, N, Names, Arr}, I::Vararg{Int, N}) where {T, N, Names, Arr} =
+    Base.getindex(A.arr, I...)
+
+Base.getindex(test, 1:2)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+# [goto error]
+: MethodError: no method matching getindex(::NamedArray{Int64,2,(:time, :index),Array{Int64,2}}, ::UnitRange{Int64})
+: Closest candidates are:
+:   getindex(::NamedArray{T,N,Names,Arr}, !Matched::Int64...) where {T, N, Names, Arr} at In[40]:3
+:   getindex(::NamedArray{T,N,Names,Arr}, !Matched::Int64) where {T, N, Names, Arr} at In[8]:3
+:
+: Stacktrace:
+:  [1] top-level scope at In[40]:5
+:END:
+
+#+BEGIN_SRC julia :session jl :async yes :display plain
+Base.getindex(A :: NamedArray{T, N, Names, Arr}, i::Int) where {
+    T, N, Names, Arr,
+} = getindex(A.arr, i)
+
+#+END_SRC
+
+#+RESULTS:
+: getindex (generic function with 200 methods)

@@ -1,0 +1,190 @@
+#+TITLE: lecture 4: dynamical systems
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: september 16 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* why?
+dynamical systems show up everywhere
+
+* properties of linear systems
+scalar system:
+
+$$u_n+1=\alpha u_n$$
+
+what is the global behavior?
+
+if we know $\alpha + u_0$, then:
+$u_{n+1} = \alpha^n u_0$
+
+if $||\alpha|| > 0$, expands;
+if $||\alpha|| < 0$, goes down;
+if $\alpha$ imaginary, spirals (in high-dimensional space)
+
+* nonlinear geometric dynamics
+** banach fixed point theorem
+
+let $(X, d)$: metric space
+that is, $d : X \to \mathbb{R}$ has three properties:
+1. $d(x,y) \ge 0$, $d(x,x) = 0$
+2. $d(x,y) = d(y,x)$
+3. $d(x,z) \leq d(x,y) + d(y,z)$
+
+(in this case: $X$ is $\mathbb{R}$)
+
+$f$ is a contraction mapping if:
+$d(f(x), f(y)) \leq \alpha d(x,y)$ for $\alpha \le 1$
+i.e. that it always shrinks distances.
+
+if $f$ is a contraction map, then there exists a *unique* fixed point $f(x^*) = x^*$
+and a sequence $x_0 \to x^*$.
+
+how do we prove this? we only have metric space properties. third one seems interesting; we can use it to bound distances.
+
+have map: $x_{n+1} = f(x_n)$
+
+so $d(x_m, x_n) \leq d(x_m, x_{m-1}) + \ellipsis + d(x_{n+1}, x_n)$ for $n \le m \in \mathbb{Z}$
+
+note:
+$d(x_{n+1}, x_n) = d(f(x_n), x_n) = d(f(x_n), f(x_{n-1}))$
+
+... lecturer got lost, look up in notes
+
+but, intuition: distance between future points is always shrinking by at least a factor of $\alpha$ (by contraction mapping)
+
+proof via geometric sequence + cauchy convergence
+
+(*if* you have a complete metric space! incomplete metric space, like rationals, may have convergence point outside space.)
+
+** stability of linear discrete dynamical systems
+let $f \in C^1$, or rather, $f$ is sufficiently nice and we can always take derivatives
+
+$x_{n+1} = f(x_n)$
+
+assume that $||$f'(x^*)|| < 1$ for some $f(x^*) = x^*$, that is, we have a fixed point and the norm of the derivative $\le 1$
+
+if this wasn't a math class, we could discretize... but this is a math class
+
+proof via lipschitz: f is *locally* a contraction map
+if f is continuous, there must be a *neighborhood* where $||f' < 1||$
+
+by banach fixed point theorem, there must be a unique point that sequences converge to!
+
+this is *stability*
+
+stability of a fixed point: if nearby, then you go to the fixed point!
+
+** summary
+if you have a map $x_{n+1} = f(x_n)$ and you find a value $x^* = f(x^*)$ and $||f'(x^x) < 1||$,
+then for all points "near" $x^n$, $x_n \to x^*$ (can make this more rigorous)
+
+if $x_{n+1} = f(x_n)$, then near a point $x^*$, $x_{n+1} = f'(x^*) x_n$.
+
+that is, near a fixed point, system will behave as a linear system with the derivative of the fixed point.
+
+example: if $x_{n+1} = x_n + f(x_n)$, redefine $x_{n+1} = g(x_n)$.
+
+** what about multiple variables?
+$\pmb{x}$ is a vector; $A$ is a matrix of scalars. Then: $\pmb{x}_{n+1} = A\pmb{x}$
+
+what's the analytical solution?
+
+if $A$ is diagonal, solution is just individual solutions for each diagonal element.
+
+if $A$ is diagonalizeable, i.e. $A = P^{-1}DP$, $D$ has eigenvalues $\lambda_1 ...  \lambda_n$ on diagonal, $P$ is eigenvectors $[v_1^T ... v_n^T]$
+
+plug in diagonalization: $\pmb{x}_{n+1} = P^{-1}DP\pmb{x}_n = P^{-1}D^nPx_0$
+
+so it's just 3 independent variables moving around, warped by some transformation
+
+do we know if it's going to a fixed point? well, must have all systems going to fixed point, i.e. $||\lambda_i|| < 1$.
+
+** interesting stuff that shows up in multidimensional system
+*** 1d-delayed systems
+$x_{n+1} = \alpha_0 x_n + ... + \alpha_m x_{n-m}$
+
+write as $[x^1_{n+1} ... x^{m+1}_{+1]^T$
+can convert to a matrix: $\alpha$ s across top row, 1s down cross diagonal: $x^i_{n+1} = ... = x^{i-1}_n$
+
+if there's a perturbation at time 0, ...?
+
+comes down to whether characteristic polynomial of time system has roots in unit circle in $\mathbb{C}$
+
+*** stochastic systems
+...
+
+can use linearity of expectation, look at how system acts in mean
+
+*jhgilles*: what if system escapes area around fixed point?
+
+*** nonlinear systems
+...
+
+*** other systems
+
+*jhgilles*: parseval networks are sorta like this; if you think of each layer as a function,
+lipschitz means vector doesn't escape no matter how many layers you have
+
+don't necessarily converge to a point though?
+
+** other stuff with loops
+*periodic* behavior $u_{n+1} = -u_n$
+that has period 1; can extend period, when you get to infinity period that's chaos
+
+* efficiently implementing loops on a computer
+
+#+BEGIN_SRC julia :session jl :async yes
+function solve_system(f, u0, p, n)
+    u = u0
+    for i in 1:n-1
+        u = f(u, p)
+    end
+    u
+end
+#+END_SRC
+
+#+RESULTS:
+: 8
+
+for this to be efficient, julia needs to know about type of function
+in julia, all functions have a unique type; this forces system to auto-specialization mechanism to always specialize higher-order function
+(this is slightly inside baseball, could get this behavior other ways...)
+can also force system to work with function pointers (FunctionReprs.jl); but make sure function pointer has sensible return types. also, cost of functionthis system should approach 0:
+
+#+BEGIN_SRC julia :session jl :async yes
+f(x, p) = x^2 -p*x
+solve_system(f, 1., .25, 10)
+#+END_SRC
+
+#+RESULTS:
+: 9.57602880527138e-6
+
+-> approaches 0!
+
+...
+
+region w/ lipschitz derivative is $p + 1$:
+
+#+BEGIN_SRC julia :session jl :async yes
+solve_system(f, 1.251, .25, 100)
+#+END_SRC
+
+#+RESULTS:
+: 3.8234317863564664
+
+how does all of this perform?
+
+pretty well! it's also generic.
+
+you can also cache results as you go: TODO look up in notes
+
+don't worry too much about cost of appending to array, grows by doubling; but can still pre-allocate for slightly better performance if u feel like it
+
+save points as rows: sensible
+save points as columns: better in memory
+
+*important*: slices in julia allocate!!?!?! have to use `@view`
+also, permutation copies by default as well, need to use PermutedDimsArray
+
+pushing is more efficient than rebuilding matrix every time, dumbass

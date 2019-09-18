@@ -1,5 +1,10 @@
 # Julia + Tiramisu
 polyhedrally optimizing some PDEs would be cool
+just a julia wrapper for tiramisu is boring.
+however, plug tiramisu into julia as a metaprogramming tool for rearranging loops... that's interesting
+; possibly integrate w/ Flux.jl. 
+http://isl.gforge.inria.fr/
+
 
 # Adversarial attacks / Pruning -> Interpretability on PDE NNs
 pruning: operational results, may reduce very small networks even more, to the point of analytical analysis (?)
