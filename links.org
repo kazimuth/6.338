@@ -11,3 +11,7 @@
 
 * online
 - https://tutorials.juliadiffeq.org/
+
+* libs
+- gadfly: http://gadflyjl.org/stable/tutorial/
+- distributed: https://docs.julialang.org/en/v1/stdlib/Distributed/
