@@ -18,8 +18,10 @@
 #+LATEX_HEADER: \fi
 #+LATEX_HEADER: \usepackage{fontspec}
 #+LATEX_HEADER: \setmainfont{ETBookOT}
-#+LATEX_HEADER: \setmonofont[Scale=0.6]{Fira Code Regular}
+#+LATEX_HEADER: \setmonofont[Scale=0.8]{Fantasque Sans Mono}
+
 #+LATEX_HEADER: \renewcommand{\contentsname}{contents}
+
 #+LATEX_HEADER: \titleformat{\chapter}%
 #+LATEX_HEADER:   [display]% shape
 #+LATEX_HEADER:   {\relax\ifthenelse{\NOT\boolean{@tufte@symmetric}}{\begin{fullwidth}}{}}% format applied to label+text
@@ -53,11 +55,12 @@
 #+LATEX_HEADER:   %\tuftebreak
 #+LATEX_HEADER:   %\@afterindentfalse\@afterheading% suppress indentation of the next paragraph
 #+LATEX_HEADER: }
+#+LATEX_HEADER: \usepackage{graphicx}
 
 * problem 1
 
-  This was fairly straightforward; i just followed the instructions in the README.
-  Output:
+  This was fairly straightforward; I just followed the instructions in the README. I chose to use SLURM to run my code because I'm more familiar with it.
+
 #+BEGIN_SRC julia :noeval
 $ sbatch submit_forkjoin.sh
 $ cat top5norm_forkjoin.log-442748
@@ -78,26 +81,23 @@ Added workers: 13
 Pair{String,Float64}["cavorite"=>1.0; "mooncalf"=>1.0; "lunar"=>1.0; "cavor"=>1.0; "selenites"=>1.0]
 Pair{String,Float64}["leblanc"=>1.0; "holsten"=>1.0; "fowler"=>1.0; "brissago"=>1.0; "karenin"=>1.0]
 Pair{String,Float64}["montgomery"=>1.0; "puma"=>1.0; "moreau"=>1.0; "prendick"=>1.0; "swine"=>0.964286]
-Pair{String,Float64}["withered"=>0.692308; "candles"=>0.619048; "candle"=>0.567568; "shade"=>0.296296;
-                     "room"=>0.0686275]
+Pair{String,Float64}["withered"=>0.692308; "candles"=>0.619048; "candle"=>0.567568; "shade"=>0.296296; "room"=>0.0686275]
 Pair{String,Float64}["psychologist"=>1.0; "morlocks"=>1.0; "weena"=>1.0; "filby"=>1.0; "sphinx"=>1.0]
 Pair{String,Float64}["artilleryman"=>1.0; "ulla"=>1.0; "martian"=>1.0; "woking"=>1.0; "martians"=>0.993939]
 Pair{String,Float64}["henfrey"=>1.0; "adye"=>1.0; "mariner"=>1.0; "griffin"=>1.0; "jaffers"=>1.0]
 Pair{String,Float64}["vee"=>1.0; "ann"=>1.0; "alice"=>1.0; "miniver"=>1.0; "veronica"=>1.0]
 Pair{String,Float64}["graham"=>1.0; "aeropile"=>1.0; "howard"=>1.0; "asano"=>1.0; "isbister"=>1.0]
 Pair{String,Float64}["smallways"=>1.0; "edna"=>1.0; "germans"=>1.0; "bert"=>1.0; "butteridge"=>1.0]
-Pair{String,Float64}["boomfood"=>1.0; "cossar"=>1.0; "hickleybrow"=>1.0; "wondershoot"=>1.0;
-                     "herakleophorbia"=>1.0]
-Pair{String,Float64}["dad"=>1.0; "slim"=>1.0; "industrialist"=>1.0; "explorer"=>0.956522;
-                     "astronomer"=>0.953488]
+Pair{String,Float64}["boomfood"=>1.0; "cossar"=>1.0; "hickleybrow"=>1.0; "wondershoot"=>1.0; "herakleophorbia"=>1.0]
+Pair{String,Float64}["dad"=>1.0; "slim"=>1.0; "industrialist"=>1.0; "explorer"=>0.956522; "astronomer"=>0.953488]
 Pair{String,Float64}["polly"=>1.0; "johnson"=>1.0; "rumbold"=>1.0; "fishbourne"=>1.0; "parsons"=>1.0]
 #+END_SRC
 
 * problem 2
 
-  I decided to plot the output, colorizing by hostname.
+  I decided I wanted to plot the output, colorizing each random walk by hostname. So I brought in DataFrames, to feed to Gadfly after the run was complete.
 
-
+  [[latex-opt:marginnote][I originally tried to use the ~gethostname()~ julia function, but it always returned the same answer from all nodes, possibly because of slurm messing with environment variables. So, I switched that to run the actual ~`hostname`~ command.;4in]]
 
 #+BEGIN_SRC julia :noeval
 println("booting julia...")
@@ -120,7 +120,7 @@ println("prepping computation...")
     get_results(seed) = begin
         Random.seed!(seed)
         brownian = make_brownian(1, 100)
-        hostname = gethostname()
+        hostname = chomp(read(`hostname`, String))
         (brownian, hostname)
     end
 end
@@ -147,29 +147,77 @@ println("done.")
 
 #+END_SRC
 
+The batch script was also very simple.
 
+[[latex-opt:marginnote][I added an ~`-N`~ flag to force slurm to actually give me multiple nodes. Otherwise it would schedule most processes onto a single node.;1in]]
 
+#+BEGIN_SRC bash
+#!/bin/sh
 
-#+BEGIN_SRC julia :noeval
-using Gadfly
-using DataFrames
+#SBATCH -o p2.log-%j
+#SBATCH -n 10
+#SBATCH -N 10
 
-const steps = 100
+source /etc/profile
+module load julia-1.0
+julia p2.jl
 
-make_brownian(dt,n) = cumsum([0;sqrt(dt).*randn(n+1)])
-
-function render_results(data :: Array{Tuple{Array{Float64, 1}, String}, 1})
-    all = DataFrame(time = [], y = [], hostname = [])
-    for (walk, hostname) in data
-        current = DataFrame(time = 1:length(walk), y = walk, hostname = [hostname for i in 1:length(walk)])
-        append!(all, current)
-    end
-    plot(all, x=:time, y=:y, color=:hostname, Geom.line)
-end
-
-Gadfly.push_theme(:dark)
-render_results([(make_brownian(1, steps), "a"), (make_brownian(1, steps), "b")])
 #+END_SRC
+
+After running that, I copied ~results.csv~ over to my machine, and used Gadfly to visualize it:
+
+#+BEGIN_SRC jupyter-julia :session jl :async yes
+import Cairo
+using Gadfly, DataFrames, CSV
+
+results = CSV.read("results.csv")
+
+# add groupings to un-confuse lines: 50 runs, 102 steps per run
+runs = 50
+results[:run] = repeat(1:50, inner=[102])
+
+result = plot(results, x=:time, y=:y, color=:hostname, group=:run, Geom.line)
+result |> PNG("results.png", 6.75inch, 4inch, dpi=300)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+┌ Warning: `setindex!(df::DataFrame, v::AbstractVector, col_ind::ColumnIndex)` is deprecated, use `begin
+│     df[!, col_ind] = v
+│     df
+│ end` instead.
+│   caller = top-level scope at In[1]:8
+└ @ Core In[1]:8
+┌ Warning: `getindex(df::DataFrame, col_ind::ColumnIndex)` is deprecated, use `df[!, col_ind]` instead.
+│   caller = evalmapping(::DataFrame, ::Symbol) at dataframes.jl:96
+└ @ Gadfly /home/radical/.julia/dev/Gadfly/src/dataframes.jl:96
+WARNING: Cairo._jl_libpango is deprecated, use Cairo.libpango instead.
+  likely near /home/radical/.julia/packages/IJulia/fRegO/src/kernel.jl:52
+WARNING: Cairo._jl_libpango is deprecated, use Cairo.libpango instead.
+  likely near /home/radical/.julia/packages/IJulia/fRegO/src/kernel.jl:52
+WARNING: Cairo._jl_libpango is deprecated, use Cairo.libpango instead.
+  likely near /home/radical/.julia/packages/IJulia/fRegO/src/kernel.jl:52
+in apply_property at /home/radical/.julia/dev/Compose/src/cairo_backends.jl
+WARNING: Cairo._jl_libpango is deprecated, use Cairo.libpango instead.
+  likely near /home/radical/.julia/packages/IJulia/fRegO/src/kernel.jl:52
+in apply_property at /home/radical/.julia/dev/Compose/src/cairo_backends.jl
+WARNING: Cairo._jl_libpango is deprecated, use Cairo.libpango instead.
+  likely near /home/radical/.julia/packages/IJulia/fRegO/src/kernel.jl:52
+WARNING: Cairo._jl_libpango is deprecated, use Cairo.libpango instead.
+  likely near /home/radical/.julia/packages/IJulia/fRegO/src/kernel.jl:52
+WARNING: Cairo._jl_libpango is deprecated, use Cairo.libpango instead.
+  likely near /home/radical/.julia/packages/IJulia/fRegO/src/kernel.jl:52
+in apply_property at /home/radical/.julia/dev/Compose/src/cairo_backends.jl
+WARNING: Cairo._jl_libpango is deprecated, use Cairo.libpango instead.
+  likely near /home/radical/.julia/packages/IJulia/fRegO/src/kernel.jl:52
+in apply_property at /home/radical/.julia/dev/Compose/src/cairo_backends.jl
+#+end_example
+
+#+name: fig:full-width
+#+caption[results]: Random walks, colored by hostname.
+#+attr_latex: :float multicolumn
+[[file:./results.png]]
+
 
 # Local Variables:
 # org-fontify-quote-and-verse-blocks: t

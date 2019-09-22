@@ -1,7 +1,5 @@
 #!/bin/sh
 
-#!/bin/sh
-
 #SBATCH -o p2.log-%j
 #SBATCH -n 10
 #SBATCH -N 10
