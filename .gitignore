@@ -1,3 +1,6 @@
 **/ltximg
 **/_minted*
 **/*.pdf
+**/*.out
+**/*.out
+**/*.log-*
