@@ -1,4 +1,4 @@
-% Created 2019-09-22 Sun 19:32
+% Created 2019-09-22 Sun 19:43
 % Intended LaTeX compiler: pdflatex
 \documentclass[nobib]{tufte-handout}
 
@@ -55,7 +55,7 @@
 }
 \usepackage{graphicx}
 \author{james gilles}
-\date{september 17 2019}
+\date{september 22 2019}
 \title{18.337 homework 0}
 \hypersetup{
  pdfauthor={james gilles},
@@ -71,7 +71,7 @@
 
 
 \section{problem 1}
-\label{sec:org8b78d09}
+\label{sec:org6b6b449}
 
 This was fairly straightforward; I just followed the instructions in the README. I chose to use SLURM to run my code because I'm more familiar with it.
 
@@ -107,12 +107,13 @@ Pair{String,Float64}["dad"=>1.0; "slim"=>1.0; "industrialist"=>1.0; "explorer"=>
 Pair{String,Float64}["polly"=>1.0; "johnson"=>1.0; "rumbold"=>1.0; "fishbourne"=>1.0; "parsons"=>1.0]
 \end{minted}
 
+
 \section{problem 2}
-\label{sec:org43f54b0}
+\label{sec:orgba0ba97}
 
 I decided I wanted to plot the output, colorizing each random walk by hostname. So I brought in DataFrames, to feed to Gadfly after the run was complete.
 
-\marginnote[4in]{I originally tried to use the \texttt{gethostname()} julia function, but it always returned the same answer from all nodes, possibly because of slurm messing with environment variables. So, I switched that to run the actual \texttt{`hostname`} command.}
+\marginnote[4in]{I originally tried to use the \texttt{gethostname()} Julia function, but it always returned the same answer from all nodes, possibly because of SLURM messing with environment variables. Using the actual \texttt{`hostname`} command worked, though.}
 
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
 println("booting julia...")

@@ -1,7 +1,7 @@
 #+TITLE: 18.337 homework 0
 #+AUTHOR: james gilles
 #+EMAIL: jhgilles@mit.edu
-#+DATE: september 17 2019
+#+DATE: september 22 2019
 #+OPTIONS: tex:t latex:t
 #+LATEX_CLASS: tufte-handout
 #+LATEX_HEADER: \usepackage{ifluatex, ifxetex}
@@ -93,11 +93,12 @@ Pair{String,Float64}["dad"=>1.0; "slim"=>1.0; "industrialist"=>1.0; "explorer"=>
 Pair{String,Float64}["polly"=>1.0; "johnson"=>1.0; "rumbold"=>1.0; "fishbourne"=>1.0; "parsons"=>1.0]
 #+END_SRC
 
+
 * problem 2
 
   I decided I wanted to plot the output, colorizing each random walk by hostname. So I brought in DataFrames, to feed to Gadfly after the run was complete.
 
-  [[latex-opt:marginnote][I originally tried to use the ~gethostname()~ julia function, but it always returned the same answer from all nodes, possibly because of slurm messing with environment variables. So, I switched that to run the actual ~`hostname`~ command.;4in]]
+  [[latex-opt:marginnote][I originally tried to use the ~gethostname()~ Julia function, but it always returned the same answer from all nodes, possibly because of SLURM messing with environment variables. Using the actual ~`hostname`~ command worked, though.;4in]]
 
 #+BEGIN_SRC julia :noeval
 println("booting julia...")
