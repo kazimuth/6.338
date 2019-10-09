@@ -1,0 +1,236 @@
+#+TITLE: 6.338 lecture 9: solving stiff ordinary differential equations
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 07 october 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* intro
+  forward-mode AD via high dimensional algebras
+
+* machine epsilon and roundoff error
+  64 bits of accuracy gives you ~16 base-10 digits of precision
+  that is, the roundoff error is
+
+  there are as many floats from 0-1 as there are from 1-$\infty$
+
+  (*jhg*: can you shift computations to be around 0?)
+
+  there are fixed point numbers. why not use them? why is this this way?
+
+  floating point representation:
+
+  [sign] [mantissa] [exponent]
+
+  $\pm \; \mathtt{m.antissa} * 2^\mathtt{exponent}$
+
+  machine epsilon $E$ s.t. $1 + E = 1$
+
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
+  e = eps(1.)
+  e, 1. + (e * .5), 1. + (e * .50001)
+  #+END_SRC
+
+  #+RESULTS:
+  | 2.220446049250313e-16 | 1.0 | 1.0000000000000002 |
+
+  example: subtraction:
+
+  #+BEGIN_SRC
+    1.512832...
+  - 1.512848...
+  -------------
+  - 0.000016...
+  #+END_SRC
+
+  you lose 5 digits of precision!
+
+ #+BEGIN_SRC jupyter-julia :session jl :async yes
+  e = 1e-10rand()
+  @show e
+  @show 1 + e
+  ()
+ #+END_SRC
+
+ #+RESULTS:
+ :RESULTS:
+ : e = 7.0183027074124604e-12
+ : 1 + e = 1.0000000000070184
+
+ :END:
+
+  computation of derivatives: look at *finite differencing*:
+
+  $$f'(x) = \lim_{\epsilon \to 0} \frac{f(x + \epsilon) - f(x)}{\epsilon}$$
+
+  really neat plot of numerical error as epsilon shrinks
+
+  best you can ever do with finite differencing is ~7 base-10 digits of accuracy
+
+  this is alarming! with jacobian + factoring, we're down to 3 digits of accuracy for each step!
+
+* differencing in a different dimension: complex step differentiation
+  we need to never take a small number and add it to a large number. can we do differentiation that keeps big/small in separate dimensions?
+
+  simplest multi-dimensional number? a complex number!
+
+  okay, let's say we've got $x \in \mathbb{R}$, want to take derivative of $f$: complex analytic
+
+  expand out a taylor series in complex numbers:
+
+  $f(x + ih) = f(x) + f'(x)ih + O(h^2)$
+
+  rearrange, divide h out:
+
+  $$if'(x) = \frac{f(x+ih) - f(x)}{h} + O(h)$$
+
+  okay, $i f'$ is purely imaginary: $x \in \mathbb{R}$
+
+  take $Im$ of both sides:
+
+  $$if'(x) = \frac{Im(f(x+ih) - f(x))}{h} + O(h^2) = \frac{Im(f(x+ih))}{h} + O(h^2)$$
+
+  basically, this makes the big and small numbers never interact!
+
+  why does this work? we take a step in a direction that's orthogonal to the real numbers.
+
+  okay, can we do this in higher dimensions?
+
+* derivatives as nilpotent sensitivities
+  this can be made rigorous with nonstandard analysis, there's a good book about it
+
+  $f(a + \epsilon) = f(a) + f'(a)\epsilon + o(\epsilon)$
+
+  formally set $\epsilon^2 = 0$
+  ... you can do this if you don't take contradiction (????????)
+
+  represent a function and it's derivative: $f(a + \epsilon) = f(a) + \epsilon f'(a)$
+
+  now, because we're basing this on nonstandard analysis, just treat $\epsilon$ as a dimensional signifier
+
+  (*jhg*: basically a different way of approaching the other AD lecture, using nonstandard analysis instead of dropping higher-order terms of a taylor expansion)
+
+  can define operations on dual numbers; can then find derivatives via algebra, discarding $\epsilon^2$ terms
+
+  break things down to *primitives*; can just use $+$ and $-$ and compute approximations to $\sin$ via actual taylor-expansion implementation,
+  or shortcut and define it as $\cos$ or whatever
+
+  basically: you're using the compiler to raise (/ lower?) your functions to dual numbers
+
+  (*jhg*: wait, how do you take derivatives of functions in julia again?)
+
+* directional derivative and gradient of functions
+  $$\lim_{\epsilon \to 0} \frac{(f(\mathbf{x} + \epsilon \mathbf{v}) - f(\mathbf{x})}{\epsilon} = [\nabla f(\mathbf{x}) \cdot \mathbf{v}]$$
+
+  ...raise to duals...
+
+  heyy, it works (to find $[\nabla f(\mathbf{x}) \cdot \mathbf{v}]$)
+
+  to calculate in a different direction:
+
+  ...something something...
+
+  you end up with an $\epsilon_1\epsilon_2$ term, which we defined as $0$
+
+  ...basically, you don't have to repeat your primals, (*jhg*: i.e. the forward pass?)...
+
+  ...calculating the gradient is just computing the derivative in all the basis (function?) directions...
+
+  so, backpropagation
+
+* forward-mode AD as jacobian-vector product
+  $Jv = w$
+  $f'(x) v = w$
+  $f'(x) =$ jacobian matrix $\frac{ \partial f_i }{ \partial x_i }$, column varies $x_i$, row varies $f_i$
+
+  so you're doing matrix-vector multiplication w/ jacobian
+
+  with dual-number derivatives, you're pushing forward ... or ..., which are equivalent
+
+  so, we can represent higher-dimensional
+
+  so represent dual number $d$ w/ vector $[x y] = [x_0, y_0] = [v_{1x}, v_{1y}] \epsilon_1 + [v_{2x}, v_{2y}] \epsilon_2$
+  $= d + v_1 \epsilon_1 + v_2 \epsilon_2$
+
+  $f(d) = f(d_0) + f'(d)v_1 \epsilon_1 + f'(d)v_2 \epsilon_2$
+
+  higher-dimensional dual numbers are computing higher-dimensional
+
+  you can define a dual number $d^*$ s.t. $f(d^*)$ is the full jacobian! just put a direction and epsilon for every basis direction!
+
+  so now we're basically just pushing through "what is your value, what is your jacobian"
+
+  now we can start thinking of multi-dual $\mathbf{D} = \mathbf{D_0} + \Sigma \mathbf{\epsilon}$ (note: $\Sigma$ is a matrix
+
+  $f(D) = f(D_0) + f'(D_0) \Sigma \epsilon$
+
+  higher-order derivatives: add more epsilons! can make *hyperduals!* woo!
+  (it's actually really hard to do algebra once you're working with that many terms...)
+
+  that is the most general version of forward-mode AD
+
+  this is a formally correct result, we're not thinking of this just in terms of "dropping higher order terms"
+
+  note: pushing things through to implementations of "primitive functions" can be done because julia has its own libm implementation!
+  not as good as some proprietary ones (.5x performance), but makes things reproducible, even across hardware platforms like GPU
+
+  forward-mode AD at compile time is solved, reverse-mode AD is much harder
+
+* re-digesting sparse differentiation
+  [we can think of this as selecting special $v$'s based on a graph-coloring problem]
+
+  ok, newton's method.
+
+  how do we solve $Ja=b$? factorize jacobian, $J=LU$, $LUa=b$
+
+  $L$ is lower triangular, $U$ is upper triangular, want to find $L$ and $U$ to find original jacobian
+
+  lower triangular solve:
+
+    $\alpha a = v_1$
+    $\beta a + \gamma b = v_2$
+    find [a, b]
+
+  ...can add more stuff
+
+  backsubstitution:
+    $O(n^2)$ because it's half a square
+
+  finding $LU$ is just gaussian elimination
+
+  ok, this isn't finding a true inverse but it's still $O(n)$... why do we care?
+
+  in homework, we'll prove that there's a variant of newton's method where you only need to use jacobian of $x_0$ instead of $x_k$.
+
+  a "quasi-newton's method", which we can show will converge.
+
+  can also do "symbolic factorization" to generalize LU factorizations to sparse systems.
+
+* jacobian-free newton krylov
+  what if your factorizations don't fit in memory?
+
+  newton's method:
+  $x_{k+1} = x_k - (g'(x_k))^{-1} g(x_k)$
+
+  note: nothing special about $g$ vs $f$
+
+  $g'(x_k)v = w$
+  $x_k+1 = x_k - w$
+
+  now we have jacobian-vector product. can we use AD?
+
+  yes! we can use previous derivation to compute jacobian-vector products *without* computing full jacobian.
+
+  okay, now can we use this to solve things?
+
+  ...
+
+  we have cauchy sequence somehow involved with $Jw - b = 0$
+
+  ...TODO: reread all this nonsense...
+
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
+
+  #+END_SRC
+
+  TODO: choose final project

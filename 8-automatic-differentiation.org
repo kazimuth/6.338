@@ -1,0 +1,250 @@
+#+TITLE: lecture 8: automatic differentiation
+#+AUTHOR: James Gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: September 17 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* intro
+
+  guest lecturer: David P. Sanders, Universidad Nacional Autónoma de México (UNAM) & MIT
+
+  goal: calculate derivatives of functions:
+  - mathematical functions
+  - programming language functions
+
+  so, derivatives of functions... or *algorithms*
+
+  reminder: mathematical basics of derivatives
+
+  calculate derivatives w/ computer automatically
+
+  have a catalog of differentiate, want to have computer apply them instead of us
+
+  why do we want derivatives?
+  - solve ODEs
+  - gradient descent
+  - solve nonlinear equations using Newton's method
+  - calculate sensitivities
+
+** newton's method
+   have nonlinear equation $f : \mathbb{R} \to \mathbb{R}$
+
+   want to *solve* f, i.e. find *root* $x^*$ s.t. $f(x^*) = 0$
+
+   using an iterative method ('cause there's no symbolic method)
+   $x_{n+1} = g(x_n)$ with initial condition $x_0$
+
+   s.t. $\lim_{n \to \infty} x_n = x^*$
+
+   newton's method: pick point, draw tangent line to curve, walk along it to $y = 0$;
+   repeat
+
+   algebraically:
+   solve $f(x_1) = 0$ where $x_1 = x_0 + \delta$
+
+   $f$ is nonlinear... which is hard
+
+   if $\delta$ is small, then we can taylorize function: $f(x_0) + \delta f'(x_0) + \frac{1}{2} \delta^2 f''(x_0) + ...$
+
+   quadratic is nonlinear... which is hard
+
+   approximate by truncating to linear part: $f(x_1) = 0 ~ f(x_0) + \delta f'(x_0)$
+   therefore $\delta = -f(x_0) / f'(x_1)$
+
+   ...this isn't very well-behaved unless you use some tricks
+
+* now, on the computer
+  $f : \mathbb{R} \to \mathbb{R}$
+
+  derivative definition:
+
+  $$f'(a) := \lim_{h\to 0} [\frac{f(a+h) - f(a)}{h} ]$$
+
+  moving two points closer together along a line, looking at slope between them
+
+  (*jhg*: what are the conditions that have to be in place for this to work?)
+
+  rewrite to remove limit;
+
+  $$\lim_{h\to 0} [\frac{f(a+h) - f(a)}{h} - f(a)] = 0$$
+
+  use little o notation:
+
+  $$\frac{f(a+h) - f(a)}{h} is o(h)$$ if $$\frac{f(h)}{h} \to_{h\to 0} 0$$
+
+  so:
+
+  $$f(a + h) = f(a) + h f'(a) + o(h)$$
+
+  so: if $f(a+h) = A + Bh + o(h)$, then:
+  - $A = f(a)$
+  - $B = f'(a)$
+
+  (*jhg*: note: B can't be in $o(h)$ part, because then it wouldn't be O(h) ;))
+
+
+** example: derivative of $f \cdot g$
+   $f,g : \mathbb{R} \to \mathbb{R}$
+   assume $f$, $g$ "smooth enough"
+   (*sanders*: in an analysis class, we could say they're $C_1(\alpha)$, but we're not, so...)
+
+   $(f \cdot g)(a + h) = f(a+h) \cdot g(a+h)$
+   ... multiply out approximations, combine $o(h)$ ...
+
+   so, derivative of $f \cdot g$ is: $f(a)g'(a) + g(a)f'(a)$
+
+   this is a useful trick; we're using a taylor expansion of $f$ and $g$ to find taylor polynomial of $f \cdot g$,
+   then reduce to taylor expansion of $f \cdot g$
+
+   some people say "derivative is best linear approximation of a function"
+   ... actually:
+   - *tangent line*, written as a function, is best *affine approximation* of $f$ at a point
+
+   note: we can compute higher-order derivatives in a similar way, not going to show this
+
+   (*jhg*: this is just a formal justification to derive the rules we learned in high school
+
+   taylor expansion is also called "jet"; $f(a) + hf'(a) + o(h)$ is "jet of order 1"
+
+   exercise: $(f + g)'(a) = f'(a) + g'(a)$
+
+** back towards AD
+   given the above, what information do we need to calculate derivatives of combined functions on a computer?
+
+   we only need: $f(a)$ and $f'(a)$ for each $f$, at point $a$
+
+   (*sanders*: why is this enough? well, it's a first-order taylor expansion, so we only have access to first-order information)
+
+   in the computer; we'll represent this data with a pair of numbers $(f(a), f'(a))$ for each $f$
+
+   what data structures do we use here?
+   - tuple
+   - vector / list
+   - (*jhg*: struct of arrays? *sanders*: nothing so complicated...)
+   - ...introduce a new type! because new behaviour. (*sanders*: behaviour has a "u" in it.)
+
+   in julia:
+
+#+BEGIN_SRC jupyter-julia :session jl :async yes
+using Base
+struct SimpleDual # "dual number"
+    val :: Float64
+    der :: Float64
+end
+
+f = SimpleDual(3, 4)
+g = SimpleDual(5, 6)
+
+#+END_SRC
+
+   #+RESULTS:
+   : SimpleDual(5.0, 6.0)
+
+   note: each dual can represent a *huge* (*sanders*: uncountable??) number of possible functions!
+
+   now, what happens if we add these things?
+
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
+f + g
+  #+END_SRC
+
+  #+RESULTS:
+  :RESULTS:
+  # [goto error]
+  : MethodError: no method matching +(::SimpleDual, ::SimpleDual)
+  : Closest candidates are:
+  :   +(::Any, ::Any, !Matched::Any, !Matched::Any...) at operators.jl:529
+  :
+  : Stacktrace:
+  :  [1] top-level scope at In[4]:1
+  :END:
+
+  julia hasn't been taught to add these things...
+
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
++(f :: SimpleDual, g :: SimpleDual) = SimpleDual(f.val + g.val, f.der + g.der)
+f + g
+  #+END_SRC
+
+  #+RESULTS:
+  : Dual{Int64}(8, 10)
+
+  so now we've encoded a rule from calculus in julia!
+
+  let's make it generic:
+
+#+BEGIN_SRC jupyter-julia :session jl :async yes
+struct Dual{T <: Number}
+    val :: T
+    der :: T
+end
+Base.:+(f :: Dual, g :: Dual) = Dual(f.val + g.val, f.der + g.der)
+Base.:*(f :: Dual, alpha :: Number) = Dual(f.val * alpha, f.der * alpha)
+Base.:*(alpha::Number, f :: Dual) = Dual(f.val * alpha, f.der * alpha)
+
+f = Dual(3, 4)
+g = Dual(5, 6)
+f + g
+#+END_SRC
+
+#+RESULTS:
+: Dual{Int64}(8, 10)
+
+  now, derivatives:
+
+#+BEGIN_SRC jupyter-julia :session jl :async yes
+h(x) = x * x + 2.0x
+xx = Dual(3.0, 1.0)
+h(xx)
+#+END_SRC
+
+#+RESULTS:
+: Dual{Float64}(15.0, 8.0)
+
+  we've now encoded standard differentiation in a computer!
+
+  (this is *forward-mode* differentiation.)
+
+* higher dimensions
+  ml is in a million dimensions, so let's scale this.
+
+  have $f: \mathbb{R}^n \to \mathbb{R}$
+
+  want to calculate gradient of $f$ at $a$:
+  $\nabla f(a)=$ partial derivatives of each $x_i$ at $a$
+
+  $$f(a+h) = f(a) + \sum_i \frac{\partial f}{\partial x_i} |_a + o(||h||)$$
+
+  now want:
+  $$(f \times g)(a + h) = [f(a) + h \nabla f(a) ] * [g(a) h \nabla g(a)] + o(||h||)$$
+
+               $$= f(a)g(a) + [f(a) \nabla g(a) + g(a) \nabla f(a) ] \cdot h + o(||h||)$$
+
+  note: $a,h \in \mathbb{R}^n$; $\cdot h$ is dot product w/ $h$
+
+  for $\mathbb{R}^n \to \mathbb{R}^m$
+  now we have jacobian matrix; $\nabla$s for each component
+
+* reverse-mode differentiation
+  forward mode is inefficient because $h$ is n-dimensional
+
+  ...
+
+  lookup in notes
+  ...
+
+
+  forward-mode: with 3 directions, you're effectively computing perturbations in 3 different directions
+
+  instead, use reverse mode: more efficient
+
+  instead of propagating each perturbation forward; record partial derivatives for each elementary operation; propagate backwards using chain rule
+
+  can also *accumulate* into gradients, when input variables occur in multiple places
+  (*jhg*: i still don't understand this.)
+
+  (*jhg*: visualization: plot several summed lines, show sums of derivatives.
+  2d, like that old fourier transform visualization...)
+
+  can be implemented source-to-source or with a tape

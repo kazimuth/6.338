@@ -1,0 +1,8 @@
+#+TITLE: discretizing odes
+#+AUTHOR: James Gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: September 28 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+https://mitmath.github.io/18337/lecture7/discretizing_odes

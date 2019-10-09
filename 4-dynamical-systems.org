@@ -35,7 +35,7 @@ that is, $d : X \to \mathbb{R}$ has three properties:
 
 $f$ is a contraction mapping if:
 $d(f(x), f(y)) \leq \alpha d(x,y)$ for $\alpha \le 1$
-i.e. that it always shrinks distances.
+i.e. it always shrinks distances.
 
 if $f$ is a contraction map, then there exists a *unique* fixed point $f(x^*) = x^*$
 and a sequence $x_0 \to x^*$.
@@ -62,7 +62,7 @@ let $f \in C^1$, or rather, $f$ is sufficiently nice and we can always take deri
 
 $x_{n+1} = f(x_n)$
 
-assume that $||$f'(x^*)|| < 1$ for some $f(x^*) = x^*$, that is, we have a fixed point and the norm of the derivative $\le 1$
+assume that ||$f'(x^*)|| < 1$ for some $f(x^*) = x^*$, that is, we have a fixed point and the norm of the derivative $\le 1$
 
 if this wasn't a math class, we could discretize... but this is a math class
 
