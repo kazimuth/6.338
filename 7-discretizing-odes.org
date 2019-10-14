@@ -6,3 +6,70 @@
 #+STARTUP: latexpreview
 
 https://mitmath.github.io/18337/lecture7/discretizing_odes
+
+#+BEGIN_SRC jupyter-julia :session jl :async yes
+function lorenz(du,u,p,t)
+ du[1] = p[1]*(u[2]-u[1])
+ du[2] = u[1]*(p[2]-u[3]) - u[2]
+ du[3] = u[1]*u[2] - p[3]*u[3]
+end
+u0 = [1.0,0.0,0.0]
+tspan = (0.0,20.0)
+p = (10.0,28.0,8/3)
+using DifferentialEquations
+prob = ODEProblem(lorenz,u0,tspan,p)
+sol = solve(prob)
+using Plots
+plot(sol)
+#+END_SRC
+
+#+RESULTS:
+[[file:./.ob-jupyter/701839c4d96ed8bcb8672d4d6f166e28fe0606a6.svg]]
+
+#+BEGIN_SRC jupyter-julia :session jl :async yes
+using OrdinaryDiffEq
+
+function pleiades(du,u,p,t)
+  @inbounds begin
+  x = view(u,1:7)   # x
+  y = view(u,8:14)  # y
+  v = view(u,15:21) # x′
+  w = view(u,22:28) # y′
+  du[1:7] .= v
+  du[8:14].= w
+  for i in 14:28
+    du[i] = zero(u[1])
+  end
+  for i=1:7,j=1:7
+    if i != j
+      r = ((x[i]-x[j])^2 + (y[i] - y[j])^2)^(3/2)
+      du[14+i] += j*(x[j] - x[i])/r
+      du[21+i] += j*(y[j] - y[i])/r
+    end
+  end
+  end
+end
+tspan = (0.0,3.0)
+prob = ODEProblem(pleiades,[3.0,3.0,-1.0,-3.0,2.0,-2.0,2.0,3.0,-3.0,2.0,0,0,-4.0,4.0,0,0,0,0,0,1.75,-1.5,0,0,0,-1.25,1,0,0],tspan)
+#+END_SRC
+
+#+RESULTS:
+: [36mODEProblem[0m with uType [36mArray{Float64,1}[0m and tType [36mFloat64[0m. In-place: [36mtrue[0m
+: timespan: (0.0, 3.0)
+: u0: [3.0, 3.0, -1.0, -3.0, 2.0, -2.0, 2.0, 3.0, -3.0, 2.0  …  0.0, 1.75, -1.5, 0.0, 0.0, 0.0, -1.25, 1.0, 0.0, 0.0]
+
+#+BEGIN_SRC jupyter-julia :session jl :async yes
+#+END_SRC
+
+#+RESULTS:
+: Defined Series attributes are:
+: arrow, bar_edges, bar_position, bar_width, bins, colorbar_entry, contour_labels, contours, fill_z, fillalpha, fillcolor, fillrange, group, hover, label, levels, line_z, linealpha, linecolor, linestyle, linewidth, marker_z, markeralpha, markercolor, markershape, markersize, markerstrokealpha, markerstrokecolor, markerstrokestyle, markerstrokewidth, match_dimensions, normalize, orientation, primary, quiver, ribbon, series_annotations, seriesalpha, seriescolor, seriestype, smooth, stride, subplot, weights, x, xerror, y, yerror, z
+: linecolor {Color Type}
+: lc, lcolor, lcolour, linecolors, linecolour
+:
+: Color of the line (for path and bar stroke).  `:match` will take the value from `:seriescolor`, (though histogram/bar types use `:black` as a default).
+: Series attribute,  default: auto
+
+#+BEGIN_SRC jupyter-julia :session jl :async yes
+#+END_SRC
+

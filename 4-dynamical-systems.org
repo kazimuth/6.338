@@ -4,6 +4,7 @@
 #+DATE: september 16 2019
 #+OPTIONS: tex:t latex:t
 #+STARTUP: latexpreview
+https://mitmath.github.io/18337/lecture4/dynamical_systems
 
 * why?
 dynamical systems show up everywhere
@@ -23,6 +24,7 @@ if $||\alpha|| < 0$, goes down;
 if $\alpha$ imaginary, spirals (in high-dimensional space)
 
 * nonlinear geometric dynamics
+  The Geometric Theory of Dynamical Systems is the investigation of their long-term properties and the geometry of the phase space which they occupy. Let's start looking at this in practical terms: how do nonlinear update equations act as time goes to infinity?
 ** banach fixed point theorem
 
 let $(X, d)$: metric space
@@ -92,14 +94,15 @@ what's the analytical solution?
 
 if $A$ is diagonal, solution is just individual solutions for each diagonal element.
 
-if $A$ is diagonalizeable, i.e. $A = P^{-1}DP$, $D$ has eigenvalues $\lambda_1 ...  \lambda_n$ on diagonal, $P$ is eigenvectors $[v_1^T ... v_n^T]$
+if $A$ is diagonalizable, i.e. $A = P^{-1}DP$, $D$ has eigenvalues $\lambda_1 ...  \lambda_n$ on diagonal, $P$ is eigenvectors $[v_1^T ... v_n^T]$
 
 plug in diagonalization: $\pmb{x}_{n+1} = P^{-1}DP\pmb{x}_n = P^{-1}D^nPx_0$
 
 so it's just 3 independent variables moving around, warped by some transformation
 
-do we know if it's going to a fixed point? well, must have all systems going to fixed point, i.e. $||\lambda_i|| < 1$.
+do we know if it's going to a fixed point? well, must have all systems going to fixed point, i.e. eigenvalues $||\lambda_i|| < 1$.
 
+note: it's not the norm that's less than one! it's that each of the eigenvalues should be in the unit circle.
 ** interesting stuff that shows up in multidimensional system
 *** 1d-delayed systems
 $x_{n+1} = \alpha_0 x_n + ... + \alpha_m x_{n-m}$

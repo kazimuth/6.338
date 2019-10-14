@@ -1,0 +1,376 @@
+#+TITLE: 18.337 homework 1
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 11 october 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* problem 1
+
+** part 1
+   We want to show that if $\mathbf{x}^*$ is a fixed point of newton's method, then $\mathbf{g}(\mathbf{x}^*) = \mathbf{0}$.
+   We have:
+
+   $$\mathbf{x}^* = \mathbf{x}^* - \left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}^*)\right)^{-1} \mathbf{g}(\mathbf{x}^*)$$
+
+   Therefore:
+
+   $$\left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}^*)\right)^{-1} \mathbf{g}(\mathbf{x}^*) = \mathbf{0}$$
+
+   $\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}^*)$ is invertible by definition, so its nullspace has only one element, $\mathbf{0}$. So $\mathbf{g}(\mathbf{x}^*) = \mathbf{0}$.
+
+   Geometrically, we're drawing a line up to $\mathbf{g}(\mathbf{x}^*)$, drawing a tangent line along $\mathbf{g}'(\mathbf{x}^*)$, and moving to the x-intersect of that line. It's only possible for the x-intersect of that line to be $\mathbf{x}^*$ if $\mathbf{g}(\mathbf{x}^*)$ is already $\mathbf{0}$. This analogy also works in higher dimensions, although it's harder to visualize.
+
+** part 2
+
+   The quasi-newton approximation is of the form:
+
+   $$\mathbf{x}_{n+1} = \mathbf{x}_n - \left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}_0)\right)^{-1} \mathbf{g}(\mathbf{x}_n) = \mathbf{h}_{\mathbf{x}_0}(\mathbf{x}_n)$$
+
+   where $\mathbf{h}_{\mathbf{x}_0}$ denotes the update process using the jacobian from some particular point.
+
+   We want to determine a condition for which this sequence is stable, that is, for which it approaches a fixed point.
+
+   Let's assume that $\mathbf{g} \in C^1$ (and therefore that $\mathbf{h}_{\mathbf{x}_0} \in C^1$), and that a fixed point $\mathbf{x}^*$ of $\mathbf{h}$ exists.
+
+   Let's also assume that the eigenvalues $\lambda_i$ of $\frac{d\mathbf{h}_{\mathbf{x}_0}}{d\mathbf{x}}$ are less than $1$ at $\mathbf{x^*}$. By continuity of the derivative, it follows that this property holds in some neighborhood of $\mathbf{x^*}$.
+
+   ...need to shrink in this region... is that from the subtraction from x_n? or something else?
+
+   If we assume that $\mathbf{g}$ is sufficiently nice, we can approximate it like so:
+
+   $$\mathbf{x}_{n+1} = \left(\mathbf{x}_n - \left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}_0)\right)^{-1} \mathbf{g}(\mathbf{x}_n)\right)' \mathbf{x}_n$$
+
+   $$= \left(I - \left(\left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}_0)\right)^{-1} \mathbf{g}(\mathbf{x}_n)\right)'\right) \mathbf{x}_n$$
+
+   $$= \left(I - \mathbf{g}(\mathbf{x}_n) - \left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}_0)\right)^{-1}  \mathbf{g}'(\mathbf{x}_n) \right) \mathbf{x}_n$$
+
+
+   note that this is a *necessary* condition, but not a *sufficient* condition.
+
+   ...look at eigenvalues of $$\left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}_0)\right)^{-1} \mathbf{g}(\mathbf{x}_n)'$$, from next q?
+       in 1d setting, that's... rate of change of the next intersect point as you move up and down the line.
+           wait no, rate of change of slope to that point.
+       can this be converted to a matrix exponential? i don't think so... wait, maybe?? if you expand out the sequence.
+            wait no, because you have... a bunch of $\mathbf{g}(n)s added...? the gs and matrix multiplies are interleaved, it's not a straight exponential.
+       looks sorta like a mandelbrot set actually.
+       wait this is exactly a mandelbrot set! right?? if you take the right setting of $g(\mathbf{x}_n)$, i think. or, if you didn't do quasi-newton. maybe.
+
+** part 3
+   can set $\alpha$ to get some other version of above.
+
+** part 4
+* problem 2
+** part 1
+   #+BEGIN_SRC julia :session jl :async yes
+   using Plots, ForwardDiff, StaticArrays, Distributions, Test
+
+   is_close(x,y) = abs(x - y) < .0000001
+
+   function newton_quantile(cdf, y, x0; maxsteps=10000, pdf=x -> ForwardDiff.derivative(cdf, x))
+       f = x -> cdf(x) - y
+       x = x0
+
+       for _ in 1:maxsteps
+           px = x
+           df = pdf(x)
+           x = x - df \ f(x)
+
+           if is_close(x, px)
+               return x
+           end
+
+       end
+
+       error("newton's method did not converge in step limit")
+   end
+
+   @test newton_quantile(x -> x, .2, .5) == .2
+   @test newton_quantile(x -> x, .3, .5) == .3
+   @test newton_quantile(x -> x, .9, .5) == .9
+   nothing
+   #+END_SRC
+
+   #+RESULTS:
+
+** part 2
+   #+BEGIN_SRC julia :session jl :async yes
+   function my_quantile(d, y; x0 = mean(d), maxsteps=10000)
+       newton_quantile(x -> cdf(d, x), y, x0, maxsteps=maxsteps, pdf=x -> pdf(d, x))
+   end
+
+   for d in [Gamma(5, 1), Normal(0, 1), Beta(2, 4)]
+       for y in range(0.01, .99, length=100)
+           @test is_close(my_quantile(d, y), quantile(d, y))
+           @test is_close(my_quantile(d, y), quantile(d, y))
+       end
+   end
+   #+END_SRC
+
+   #+RESULTS:
+
+   : [32m[1mTest Passed[22m[39m
+* problem 3
+** part 1
+   #+BEGIN_SRC julia :session jl :async yes
+   function calc_attractor!(out,r;warmup=400,x0=0.25)
+       x = x0
+       for _ in 1:warmup
+           x = r * x * (1 - x)
+       end
+       for i in 1:length(out)
+           out[i] = x
+           x = r * x * (1 - x)
+       end
+   end
+   out = zeros(150)
+   calc_attractor!(out, 2.9)
+
+   @test is_close(out[1], (2.9 - 1) / 2.9)
+   nothing
+   #+END_SRC
+
+   #+RESULTS:
+
+** part 2
+   #+BEGIN_SRC julia :session jl :async yes
+   n = 1000
+   rs = 2.9:0.001:4
+
+   function calc_serial(n, rs; warmup=400)
+       out = zeros(n, length(rs), 2)
+
+       for (i, r) in enumerate(rs)
+           out[:, i, 1] .= r
+           slice = @view out[:, i, 2]
+           calc_attractor!(slice, r, warmup=warmup)
+       end
+       out
+   end
+
+   function bifurcation_plot(out)
+       xs = reshape(out[:, :, 1], :)
+       ys = reshape(out[:, :, 2], :)
+
+       plot(xs, ys, markershape=:rect, markerstrokewidth=0,
+            markersize=.01, markercolor=:black, markeralpha=0.01,
+            line=false, legend=false, foreground_color_border=:transparent,
+            foreground_color_axis=:transparent, format=:png, dpi=200,
+            seriestype=:scatter)
+   end
+
+   bifurcation_plot(calc_serial(n, rs))
+   #+END_SRC
+
+   #+RESULTS:
+   [[file:./.ob-jupyter/113a299d9224778627a97aff17a34766b5df8314.png]]
+
+   #+BEGIN_SRC julia :session jl :async yes
+   using Base.Threads
+   n = 150
+
+   function calc_parallel(n, rs; warmup=400)
+       out = zeros(n, length(rs), 2)
+       to_iter = collect(enumerate(rs))
+
+       @threads for (i, r) in to_iter
+           out[:, i, 1] .= r
+           slice = @view out[:, i, 2]
+           calc_attractor!(slice, r, warmup=warmup)
+       end
+       out
+   end
+
+   println("threads: ", nthreads())
+   print("serial:  ")
+   @time   calc_serial(n, rs)
+   print("parallel:")
+   @time calc_parallel(n, rs)
+   nothing
+   #+END_SRC
+
+   #+RESULTS:
+   : threads: 8
+   : serial:    0.004059 seconds (1.11 k allocations: 2.587 MiB)
+   : parallel:  0.059704 seconds (203.17 k allocations: 12.623 MiB, 7.66% gc time)
+
+   Currently the serial execution is much faster than the parallel execution. This is because the ~@threads~ macro spins up new threads
+   every time it is called; most of that timing overhead comes from the time it takes the OS to create and destroy threads.
+
+   If we give the threads more work to do, the ratio changes:
+
+   #+BEGIN_SRC julia :session jl :async yes
+   print("serial:  ")
+   @time   calc_serial(n, rs, warmup=1000000)
+   print("parallel:")
+   @time calc_parallel(n, rs, warmup=1000000)
+   nothing
+   #+END_SRC
+
+   #+RESULTS:
+   : serial:    2.043056 seconds (1.11 k allocations: 2.588 MiB)
+   : parallel:  0.303830 seconds (1.33 k allocations: 2.620 MiB)
+
+   Now the actual computation loop dominates and the parallel implementation is much faster.
+
+** part 4
+   TODO
+
+* extra
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
+  g(x) = sin.(x)
+
+  function newton(g, x0, n=10)
+      out = zeros(length(x0), n)
+      x = x0
+      for i in 1:n
+          out[:, i] = x
+          dg = ForwardDiff.jacobian(g, x)
+          x = x - dg \ g(x)
+      end
+      return out
+  end
+
+  function quasinewton(g, x0, n=10)
+      out = zeros(length(x0), n)
+      x = x0
+      dg = ForwardDiff.jacobian(g, x)
+      for i in 1:n
+          out[:, i] = x
+          x = x - dg \ g(x)
+      end
+      return out
+  end
+  #+END_SRC
+
+  #+RESULTS:
+  : quasinewton (generic function with 2 methods)
+
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
+  function newtonplot(g, x0; n=10, op=newton, title="newton's method", xstar=0)
+    n = 10
+          x = x - dg \ g(x)
+      end
+      return out
+  end
+
+  function quasinewton(g, x0, n=10)
+      out = zeros(length(x0), n)
+      x = x0
+      dg = ForwardDiff.jacobian(g, x)
+      for i in 1:n
+          out[:, i] = x
+          x = x - dg \ g(x)
+      end
+      return out
+  end
+  #+END_SRC
+
+  #+RESULTS:
+  : quasinewton (generic function with 2 methods)
+
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
+  function newtonplot(g, x0; n=10, op=newton, title="newton's method", xstar=0)
+    n = 10
+
+    xs = op(g, [x0], n)
+    ys = g.(xs)
+    xs = xs[:]
+    ys = ys[:]
+
+    p = plot(sin, range(-3.0, 3.0, length=100), xlim=(-pi, pi), legend=false, title=title, foreground_color_border=:transparent, foreground_color_axis=:transparent)
+
+    for i in 1:n-1
+        plot!(p, Shape([ (xs[i], 0), (xs[i], ys[i]) ]), linecolor=:orange)
+        plot!(p, Shape([ (xs[i], ys[i]), (xs[i+1], 0) ]))
+    end
+    plot!(p, [xs[1]], [0.], marker=true, markerstrokewidth=0)
+
+    if abs(xstar - xs[n]) < .01
+      plot!(p, [xstar], [0.], marker=true, markercolor=RGB(.3,.9,0.), markerstrokewidth=0, markersize=5.)
+    else
+      plot!(p, [xstar], [0.], marker=true,
+    xs = op(g, [x0], n)
+    ys = g.(xs)
+    xs = xs[:]
+    ys = ys[:]
+
+    p = plot(sin, range(-3.0, 3.0, length=100), xlim=(-pi, pi), legend=false, title=title, foreground_color_border=:transparent, foreground_color_axis=:transparent)
+
+    for i in 1:n-1
+        plot!(p, Shape([ (xs[i], 0), (xs[i], ys[i]) ]), linecolor=:orange)
+        plot!(p, Shape([ (xs[i], ys[i]), (xs[i+1], 0) ]))
+    end
+    plot!(p, [xs[1]], [0.], marker=true, markerstrokewidth=0)
+
+    if abs(xstar - xs[n]) < .01
+      plot!(p, [xstar], [0.], marker=true, markercolor=RGB(.3,.9,0.), markerstrokewidth=0, markersize=5.)
+    else
+      plot!(p, [xstar], [0.], marker=true, markercolor=:red, markerstrokewidth=0, markersize=5.)
+    end
+
+    p
+  end
+
+  plot(newtonplot(g, 0.2, op=newton), newtonplot(g, 1.0, op=quasinewton, title="quasinewton method"), layout=(2,1))
+  #+END_SRC
+
+  #+RESULTS:
+  [[file:./.ob-jupyter/797e64a4f415b8bfe462e2f6b56946d71c2f8e7d.svg]]
+
+#+BEGIN_SRC jupyter-julia :session jl :async yes :display gif
+  @gif for x in range(-1.3, 1.3, length=240)
+    plot(newtonplot(g, x, op=newton), newtonplot(g, x, op=quasinewton), layout=(2,1))
+  end
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: ┌ Info: Saved animation to
+: │   fn = /home/radical/dev/6.338/hw/hw1/tmp.gif
+: └ @ Plots /home/radical/.julia/packages/Plots/h3o4c/src/animation.jl:95
+#+begin_export html
+<img src="tmp.gif" />
+#+end_export
+:END:
+
+#+BEGIN_SRC jupyter-julia :session jl :async yes :display plain
+  anim = @animate for y in range(0, 2pi, length=180)
+    x = cos(y) * 1.3
+    plot(newtonplot(g, x, op=newton), newtonplot(g, x, op=quasinewton, title="quasinewton method"), layout=(2,1), dpi=200)
+  end
+
+  gif(anim, "newton.gif")
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: ┌ Info: Saved animation to
+: │   fn = /home/radical/dev/6.338/hw/hw1/newton.gif
+: └ @ Plots /home/radical/.julia/packages/Plots/h3o4c/src/animation.jl:95
+: Plots.AnimatedGif("/home/radical/dev/6.338/hw/hw1/newton.gif")
+:END:
+#+BEGIN_SRC julia :session jl :async yes
+   plot(randn(10,2)[:, 1], randn(10,2)[:, 2], markershape=:rect, markerstrokewidth=0, markersize=1, markercolor=:black, markeralpha=0.5, line=false, legend=false, foreground_color_border=:transparent, foreground_color_axis=:transparent, format=:png, dpi=200, seriestype=:scatter, fontfamily="Source Code Pro")
+#plotattr(:Series, mark)
+#+END_SRC
+
+#+RESULTS:
+[[file:./.ob-jupyter/17ff8f025e9ddcf567108218c02841001250976e.png]]
+
+#+BEGIN_SRC julia :session jl :async yes
+plotattr(:Plot)
+plotattr(:Series)
+plotattr("markersize")
+#+END_SRC
+
+#+RESULTS:
+: Defined Plot attributes are:
+: background_color, background_color_outside, display_type, dpi, extra_kwargs, fontfamily, foreground_color, html_output_format, inset_subplots, layout, link, overwrite_figure, plot_title, pos, show, size, tex_output_standalone, thickness_scaling, window_title
+: Defined Series attributes are:
+: arrow, bar_edges, bar_position, bar_width, bins, colorbar_entry, contour_labels, contours, fill_z, fillalpha, fillcolor, fillrange, group, hover, label, levels, line_z, linealpha, linecolor, linestyle, linewidth, marker_z, markeralpha, markercolor, markershape, markersize, markerstrokealpha, markerstrokecolor, markerstrokestyle, markerstrokewidth, match_dimensions, normalize, orientation, primary, quiver, ribbon, series_annotations, seriesalpha, seriescolor, seriestype, smooth, stride, subplot, weights, x, xerror, y, yerror, z
+: markersize {Number or AbstractVector}
+: markersizes, ms, msize
+:
+: Size (radius pixels) of the markers.
+: Series attribute,  default: 4
