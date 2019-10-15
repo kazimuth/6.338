@@ -4,7 +4,29 @@
 #+DATE: september 16 2019
 #+OPTIONS: tex:t latex:t
 #+STARTUP: latexpreview
+
+#+LATEX_HEADER: \usepackage{mathtools}
+#+LATEX_HEADER:
+#+LATEX_HEADER: \DeclarePairedDelimiter\abs{\lvert}{\rvert}%
+#+LATEX_HEADER: \DeclarePairedDelimiter\norm{\lVert}{\rVert}%
+#+LATEX_HEADER:
+#+LATEX_HEADER: % Swap the definition of \abs* and \norm*, so that \abs
+#+LATEX_HEADER: % and \norm resizes the size of the brackets, and the
+#+LATEX_HEADER: % starred version does not.
+#+LATEX_HEADER: \makeatletter
+#+LATEX_HEADER: \let\oldabs\abs
+#+LATEX_HEADER: \def\abs{\@ifstar{\oldabs}{\oldabs*}}
+#+LATEX_HEADER: %
+#+LATEX_HEADER: \let\oldnorm\norm
+#+LATEX_HEADER: \def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
+#+LATEX_HEADER: \makeatother
+
+#+LATEX_HEADER: \newcommand{\xv}[0]{\mathbf{x}}
+#+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
+#+LATEX_HEADER: \newcommand{\zv}[0]{\mathbf{z}}
+#+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
 https://mitmath.github.io/18337/lecture4/dynamical_systems
+
 
 * why?
 dynamical systems show up everywhere
@@ -64,18 +86,33 @@ let $f \in C^1$, or rather, $f$ is sufficiently nice and we can always take deri
 
 $x_{n+1} = f(x_n)$
 
-assume that ||$f'(x^*)|| < 1$ for some $f(x^*) = x^*$, that is, we have a fixed point and the norm of the derivative $\le 1$
+assume that $\abs{f'(x^*)} < 1$ for some $f(x^*) = x^*$, that is, we have a fixed point and the norm of the derivative $\le 1$
 
 if this wasn't a math class, we could discretize... but this is a math class
 
-proof via lipschitz: f is *locally* a contraction map
 if f is continuous, there must be a *neighborhood* where $||f' < 1||$
 
-by banach fixed point theorem, there must be a unique point that sequences converge to!
+now note:
+
+$$\abs{f(y) - f(x)} = \abs{\int_x^y f'(z) dz} \leq \abs{\int_x^y 1 dz} = \abs{y-x} $$
+
+which is to say, $f$ is lipschitz, where we can use derivative as the lipschitz bound.
+
+but therefore, in this neighborhood, this function is *locally* a contraction map!
+
+by banach fixed point theorem, there must be a unique point that sequences converge to.
 
 this is *stability*
 
 stability of a fixed point: if nearby, then you go to the fixed point!
+
+multidimensional version:
+
+take $\fv \in C^1$, assume $$\norm{\frac{d\fv}{d\xv}(\xv^*)} \leq 1$$ for some $\fv(\xv^*) = \xv^*$; equivalently, for all eigenvalues $\lambda_i$ of jacobian $\frac{d\fv}{d\xv}(\xv^*)$, $\abs{\lambda_i} \leq 1$
+
+$$\norm{\fv(\yv) - \fv(\xv)}=\norm{\int_{\xv}^{\yv} \frac{d\fv}{d\xv}(\zv)\; d\zv}\leq\int_{\xv}^{\yv} \norm{\frac{d\fv}{d\xv}(\zv) \; d\zv} \leq \int_{\xv}^{\yv} \norm{d\zv} = \norm{\xv - \yv}$$
+
+So $$\norm{\fv(\yv) - \fv(\xv)} \leq \norm{\xv - \yv}$$ and we again have a contraction mapping.
 
 ** summary
 if you have a map $x_{n+1} = f(x_n)$ and you find a value $x^* = f(x^*)$ and $||f'(x^x) < 1||$,

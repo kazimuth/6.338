@@ -5,56 +5,99 @@
 #+OPTIONS: tex:t latex:t
 #+STARTUP: latexpreview
 
-* problem 1
+#+LATEX_HEADER: \newcommand{\xv}[0]{\mathbf{x}}
+#+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
+#+LATEX_HEADER: \newcommand{\zv}[0]{\mathbf{z}}
+#+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
+#+LATEX_HEADER: \newcommand{\gv}[0]{\mathbf{g}}
+#+LATEX_HEADER: \newcommand{\hv}[0]{\mathbf{h}}
+#+LATEX_HEADER: \newcommand{\hxo}[0]{\mathbf{h}^{\xv_0}}
+#+LATEX_HEADER: \newcommand{\diff}[2]{\frac{d #1}{d #2}}
 
+#+LATEX_HEADER: \usepackage{mathtools}
+#+LATEX_HEADER:
+#+LATEX_HEADER: \DeclarePairedDelimiter\abs{\lvert}{\rvert}%
+#+LATEX_HEADER: \DeclarePairedDelimiter\norm{\lVert}{\rVert}%
+#+LATEX_HEADER:
+#+LATEX_HEADER: % Swap the definition of \abs* and \norm*, so that \abs
+#+LATEX_HEADER: % and \norm resizes the size of the brackets, and the
+#+LATEX_HEADER: % starred version does not.
+#+LATEX_HEADER: \makeatletter
+#+LATEX_HEADER: \let\oldabs\abs
+#+LATEX_HEADER: \def\abs{\@ifstar{\oldabs}{\oldabs*}}
+#+LATEX_HEADER: %
+#+LATEX_HEADER: \let\oldnorm\norm
+#+LATEX_HEADER: \def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
+#+LATEX_HEADER: \makeatother
+
+* problem 1
 ** part 1
-   We want to show that if $\mathbf{x}^*$ is a fixed point of newton's method, then $\mathbf{g}(\mathbf{x}^*) = \mathbf{0}$.
+   We want to show that if $\xv^*$ is a fixed point of newton's method, then $\gv(\xv^*) = \mathbf{0}$.
    We have:
 
-   $$\mathbf{x}^* = \mathbf{x}^* - \left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}^*)\right)^{-1} \mathbf{g}(\mathbf{x}^*)$$
+   $$\xv^* = \xv^* - \left(\frac{d\gv}{d\xv}(\xv^*)\right)^{-1} \gv(\xv^*)$$
 
    Therefore:
 
-   $$\left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}^*)\right)^{-1} \mathbf{g}(\mathbf{x}^*) = \mathbf{0}$$
+   $$\left(\frac{d\gv}{d\xv}(\xv^*)\right)^{-1} \gv(\xv^*) = \mathbf{0}$$
 
-   $\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}^*)$ is invertible by definition, so its nullspace has only one element, $\mathbf{0}$. So $\mathbf{g}(\mathbf{x}^*) = \mathbf{0}$.
+   $\frac{d\gv}{d\xv}(\xv^*)$ is invertible by definition, so its nullspace has only one element, $\mathbf{0}$. So $\gv(\xv^*) = \mathbf{0}$.
 
-   Geometrically, we're drawing a line up to $\mathbf{g}(\mathbf{x}^*)$, drawing a tangent line along $\mathbf{g}'(\mathbf{x}^*)$, and moving to the x-intersect of that line. It's only possible for the x-intersect of that line to be $\mathbf{x}^*$ if $\mathbf{g}(\mathbf{x}^*)$ is already $\mathbf{0}$. This analogy also works in higher dimensions, although it's harder to visualize.
+   Geometrically, we're drawing a line up to $\gv(\xv^*)$, drawing a tangent line along $\gv'(\xv^*)$, and moving to the x-intersect of that line. It's only possible for the x-intersect of that line to be $\xv^*$ if $\gv(\xv^*)$ is already $\mathbf{0}$. This analogy also works in higher dimensions, although it's harder to visualize.
 
 ** part 2
 
    The quasi-newton approximation is of the form:
 
-   $$\mathbf{x}_{n+1} = \mathbf{x}_n - \left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}_0)\right)^{-1} \mathbf{g}(\mathbf{x}_n) = \mathbf{h}_{\mathbf{x}_0}(\mathbf{x}_n)$$
+   $$\xv_{n+1} = \xv_n - \left(\diff{\gv}{\xv}(\xv_0)\right)^{-1} \gv(\xv_n) = \hxo(\xv_n)$$
 
-   where $\mathbf{h}_{\mathbf{x}_0}$ denotes the update process using the jacobian from some particular point.
+   where $\hxo$ denotes the update step using the jacobian from a particular point $\xv_0$.
 
-   We want to determine a condition for which this sequence is stable, that is, for which it approaches a fixed point.
+   We want to determine a condition for which this sequence is stable, that is, for which it approaches a fixed point. Let's assume that $\gv \in C^1$ (and therefore that $\hxo \in C^1$), and that a fixed point $\xv^*$ of $\hxo$ exists.
 
-   Let's assume that $\mathbf{g} \in C^1$ (and therefore that $\mathbf{h}_{\mathbf{x}_0} \in C^1$), and that a fixed point $\mathbf{x}^*$ of $\mathbf{h}$ exists.
+   Let us also assume that $$\norm{\frac{d\hxo}{d\xv}(\xv^*)} \leq 1$$; equivalently, for all eigenvalues $\lambda_i$ of $J(\hxo)$, $\abs{\lambda_i} \leq 1$. Because $\hxo$ is continuous, this property holds for some neighborhood around $\xv^*$
 
-   Let's also assume that the eigenvalues $\lambda_i$ of $\frac{d\mathbf{h}_{\mathbf{x}_0}}{d\mathbf{x}}$ are less than $1$ at $\mathbf{x^*}$. By continuity of the derivative, it follows that this property holds in some neighborhood of $\mathbf{x^*}$.
+   Now, given some points $\xv$ and $\yv$, we have:
+
+   $$\norm{\hxo(\yv) - \hxo(\xv)}=\norm{\int_{\xv}^{\yv} \frac{d\hxo}{d\xv}(\zv)\; d\zv}\leq\int_{\xv}^{\yv} \norm{\frac{d\hxo}{d\xv}(\zv) \; d\zv} \leq \int_{\xv}^{\yv} \norm{d\zv} = \norm{\xv - \yv}$$
+
+   So:
+
+   $$\norm{\hxo(\yv) - \hxo(\xv)} \leq \norm{\xv - \yv}$$
+
+   $\hxo$ is a contraction mapping, so by the Banach fixed point theorem, it must be stable around $\xv^*$.
+
+
+
+
+   We can rewrite a linear step of $h$ as $\hxo(x) = \diff{\hxo}{\xv}(\xv - \xv^*)$
+
+   Let's also assume that the eigenvalues $\lambda_i$ of $\frac{d\hxo}{d\xv}$ are less than $1$ at $\mathbf{x^*}$. By continuity of the derivative, it follows that this property holds in some neighborhood of $\mathbf{x^*}$.
+
+   If this property holds, then $\hxo$ is locally a contraction mapping
+
+   So we need to know that $
 
    ...need to shrink in this region... is that from the subtraction from x_n? or something else?
 
-   If we assume that $\mathbf{g}$ is sufficiently nice, we can approximate it like so:
+   If we assume that $\gv$ is sufficiently nice, we can approximate it like so:
 
-   $$\mathbf{x}_{n+1} = \left(\mathbf{x}_n - \left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}_0)\right)^{-1} \mathbf{g}(\mathbf{x}_n)\right)' \mathbf{x}_n$$
+   $$\xv_{n+1} = \left(\xv_n - \left(\frac{d\gv}{d\xv}(\xv_0)\right)^{-1} \gv(\xv_n)\right)' \xv_n$$
 
-   $$= \left(I - \left(\left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}_0)\right)^{-1} \mathbf{g}(\mathbf{x}_n)\right)'\right) \mathbf{x}_n$$
+   $$= \left(I - \left(\left(\frac{d\gv}{d\xv}(\xv_0)\right)^{-1} \gv(\xv_n)\right)'\right) \xv_n$$
 
-   $$= \left(I - \mathbf{g}(\mathbf{x}_n) - \left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}_0)\right)^{-1}  \mathbf{g}'(\mathbf{x}_n) \right) \mathbf{x}_n$$
+   $$= \left(I - \gv(\xv_n) - \left(\frac{d\gv}{d\xv}(\xv_0)\right)^{-1}  \gv'(\xv_n) \right) \xv_n$$
 
 
    note that this is a *necessary* condition, but not a *sufficient* condition.
 
-   ...look at eigenvalues of $$\left(\frac{d\mathbf{g}}{d\mathbf{x}}(\mathbf{x}_0)\right)^{-1} \mathbf{g}(\mathbf{x}_n)'$$, from next q?
+   ...look at eigenvalues of $$\left(\frac{d\gv}{d\xv}(\xv_0)\right)^{-1} \gv(\xv_n)'$$, from next q?
        in 1d setting, that's... rate of change of the next intersect point as you move up and down the line.
            wait no, rate of change of slope to that point.
        can this be converted to a matrix exponential? i don't think so... wait, maybe?? if you expand out the sequence.
-            wait no, because you have... a bunch of $\mathbf{g}(n)s added...? the gs and matrix multiplies are interleaved, it's not a straight exponential.
+            wait no, because you have... a bunch of $\gv(n)s added...? the gs and matrix multiplies are interleaved, it's not a straight exponential.
        looks sorta like a mandelbrot set actually.
-       wait this is exactly a mandelbrot set! right?? if you take the right setting of $g(\mathbf{x}_n)$, i think. or, if you didn't do quasi-newton. maybe.
+       wait this is exactly a mandelbrot set! right?? if you take the right setting of $g(\xv_n)$, i think. or, if you didn't do quasi-newton. maybe.
 
 ** part 3
    can set $\alpha$ to get some other version of above.
@@ -226,29 +269,6 @@
       for i in 1:n
           out[:, i] = x
           dg = ForwardDiff.jacobian(g, x)
-          x = x - dg \ g(x)
-      end
-      return out
-  end
-
-  function quasinewton(g, x0, n=10)
-      out = zeros(length(x0), n)
-      x = x0
-      dg = ForwardDiff.jacobian(g, x)
-      for i in 1:n
-          out[:, i] = x
-          x = x - dg \ g(x)
-      end
-      return out
-  end
-  #+END_SRC
-
-  #+RESULTS:
-  : quasinewton (generic function with 2 methods)
-
-  #+BEGIN_SRC jupyter-julia :session jl :async yes
-  function newtonplot(g, x0; n=10, op=newton, title="newton's method", xstar=0)
-    n = 10
           x = x - dg \ g(x)
       end
       return out
