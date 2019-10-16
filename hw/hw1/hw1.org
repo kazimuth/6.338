@@ -1,18 +1,71 @@
 #+TITLE: 18.337 homework 1
-#+AUTHOR: james gilles
+#+AUTHOR: James Gilles
 #+EMAIL: jhgilles@mit.edu
-#+DATE: 11 october 2019
+#+DATE: 11 October 2019
 #+OPTIONS: tex:t latex:t
 #+STARTUP: latexpreview
+
+#+LATEX_CLASS: tufte-handout
+#+LATEX_HEADER: \usepackage{ifluatex, ifxetex}
+#+LATEX_HEADER: %Next block avoids bug, from http://tex.stackexchange.com/a/200725/1913
+#+LATEX_HEADER: \ifx\ifxetex\ifluatex\else
+#+LATEX_HEADER:   \newcommand{\textls}[2][5]{%
+#+LATEX_HEADER:     \begingroup\addfontfeatures{LetterSpace=#1}#2\endgroup
+#+LATEX_HEADER:   }
+#+LATEX_HEADER:   \renewcommand{\allcapsspacing}[1]{\textls[15]{#1}}
+#+LATEX_HEADER:   \renewcommand{\smallcapsspacing}[1]{\textls[10]{#1}}
+#+LATEX_HEADER:   \renewcommand{\allcaps}[1]{\textls[15]{\MakeTextUppercase{#1}}}
+#+LATEX_HEADER:   \renewcommand{\smallcaps}[1]{\smallcapsspacing{\scshape\MakeTextLowercase{#1}}}
+#+LATEX_HEADER:   \renewcommand{\textsc}[1]{\smallcapsspacing{\textsmallcaps{#1}}}
+#+LATEX_HEADER:   % shove everything else in here so we don't mess with emacs latexpreview, which doesn't use lualatex
+#+LATEX_HEADER:   \usepackage{fontspec}
+#+LATEX_HEADER:   \setmainfont{ETBookOT}
+#+LATEX_HEADER:   \setmonofont[Scale=0.8]{Fantasque Sans Mono}
+#+LATEX_HEADER:   \renewcommand{\contentsname}{Contents}
+#+LATEX_HEADER:   \titleformat{\chapter}%
+#+LATEX_HEADER:     [display]% shape
+#+LATEX_HEADER:     {\relax\ifthenelse{\NOT\boolean{@tufte@symmetric}}{\begin{fullwidth}}{}}% format applied to label+text
+#+LATEX_HEADER:     {\huge\thechapter}% label
+#+LATEX_HEADER:     {0pt}% horizontal separation between label and title body
+#+LATEX_HEADER:     {\huge\rmfamily}% before the title body
+#+LATEX_HEADER:     [\ifthenelse{\NOT\boolean{@tufte@symmetric}}{\end{fullwidth}}{}]% after the title body
+#+LATEX_HEADER:   \titleformat{\section}%
+#+LATEX_HEADER:     [hang]% shape
+#+LATEX_HEADER:     {\normalfont\Large}% format applied to label+text
+#+LATEX_HEADER:     {\thesection}% label
+#+LATEX_HEADER:     {1em}% horizontal separation between label and title body
+#+LATEX_HEADER:     {}% before the title body
+#+LATEX_HEADER:     []% after the title body
+#+LATEX_HEADER:   \titleformat{\subsection}%
+#+LATEX_HEADER:     [hang]% shape
+#+LATEX_HEADER:     {\normalfont\large\itshape}% format applied to label+text
+#+LATEX_HEADER:     {\thesubsection}% label
+#+LATEX_HEADER:     {1em}% horizontal separation between label and title body
+#+LATEX_HEADER:     {}% before the title body
+#+LATEX_HEADER:     []% after the title body
+#+LATEX_HEADER:   \renewcommand{\maketitle}{%
+#+LATEX_HEADER:     \begingroup
+#+LATEX_HEADER:       \setlength{\parindent}{0pt}%
+#+LATEX_HEADER:       \setlength{\parskip}{4pt}%
+#+LATEX_HEADER:       \LARGE\scshape\plaintitle\par
+#+LATEX_HEADER:       \Large\itshape\plainauthor\par
+#+LATEX_HEADER:       \Large\itshape\thedate\par
+#+LATEX_HEADER:     \endgroup
+#+LATEX_HEADER:     %\thispagestyle{plain}% suppress the running head
+#+LATEX_HEADER:     %\tuftebreak
+#+LATEX_HEADER:     %\@afterindentfalse\@afterheading% suppress indentation of the next paragraph
+#+LATEX_HEADER:   }
+#+LATEX_HEADER:   \usepackage{graphicx}
+#+LATEX_HEADER: \fi
 
 #+LATEX_HEADER: \newcommand{\xv}[0]{\mathbf{x}}
 #+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
 #+LATEX_HEADER: \newcommand{\zv}[0]{\mathbf{z}}
 #+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
+#+LATEX_HEADER: \newcommand{\J}[0]{\mathbf{J}}
 #+LATEX_HEADER: \newcommand{\gv}[0]{\mathbf{g}}
 #+LATEX_HEADER: \newcommand{\hv}[0]{\mathbf{h}}
-#+LATEX_HEADER: \newcommand{\hxo}[0]{\mathbf{h}^{\xv_0}}
-#+LATEX_HEADER: \newcommand{\diff}[2]{\frac{d #1}{d #2}}
+#+LATEX_HEADER: \newcommand{\hxo}[0]{\mathbf{h}_0}
 
 #+LATEX_HEADER: \usepackage{mathtools}
 #+LATEX_HEADER:
@@ -30,116 +83,116 @@
 #+LATEX_HEADER: \def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
 #+LATEX_HEADER: \makeatother
 
-* problem 1
-** part 1
+#+LATEX_HEADER: \newcommand*{\approxident}{%
+#+LATEX_HEADER: \mathrel{\vcenter{\offinterlineskip
+#+LATEX_HEADER: \hbox{$\sim$}\vskip-.35ex\hbox{$\sim$}\vskip}}}
+
+* Problem 1
+** Part 1
    We want to show that if $\xv^*$ is a fixed point of newton's method, then $\gv(\xv^*) = \mathbf{0}$.
    We have:
 
-   $$\xv^* = \xv^* - \left(\frac{d\gv}{d\xv}(\xv^*)\right)^{-1} \gv(\xv^*)$$
+   $$\xv^* = \xv^* - \left(\J_{\gv}(\xv^*)\right)^{-1} \gv(\xv^*)$$
 
    Therefore:
 
-   $$\left(\frac{d\gv}{d\xv}(\xv^*)\right)^{-1} \gv(\xv^*) = \mathbf{0}$$
+   $$\left(\J_{\gv}(\xv^*)\right)^{-1} \gv(\xv^*) = \mathbf{0}$$
 
-   $\frac{d\gv}{d\xv}(\xv^*)$ is invertible by definition, so its nullspace has only one element, $\mathbf{0}$. So $\gv(\xv^*) = \mathbf{0}$.
+   $\J_{\gv}(\xv^*)$ is invertible by definition, so its nullspace has only one element, $\mathbf{0}$. So $\gv(\xv^*) = \mathbf{0}$.
 
-   Geometrically, we're drawing a line up to $\gv(\xv^*)$, drawing a tangent line along $\gv'(\xv^*)$, and moving to the x-intersect of that line. It's only possible for the x-intersect of that line to be $\xv^*$ if $\gv(\xv^*)$ is already $\mathbf{0}$. This analogy also works in higher dimensions, although it's harder to visualize.
+   [[latex-opt:marginnote][Geometrically, we're drawing a line up to $\gv(\xv^*)$, drawing a tangent line along $\gv'(\xv^*)$, and moving to the x-intersect of that line. It's only possible for the x-intersect of that line to be $\xv^*$ if $\gv(\xv^*)$ is already $\mathbf{0}$. This analogy also works in higher dimensions, although it's harder to visualize.;-1.5in]]
 
-** part 2
+** Part 2
 
    The quasi-newton approximation is of the form:
 
-   $$\xv_{n+1} = \xv_n - \left(\diff{\gv}{\xv}(\xv_0)\right)^{-1} \gv(\xv_n) = \hxo(\xv_n)$$
+   $$\xv_{n+1} = \xv_n - \left(\J_{\gv}(\xv_0)\right)^{-1} \gv(\xv_n) = \hxo(\xv_n)$$
 
-   where $\hxo$ denotes the update step using the jacobian from a particular point $\xv_0$.
+   where $\hxo$ denotes the update step using the Jacobian from some particular point $\xv_0$.
 
-   We want to determine a condition for which this sequence is stable, that is, for which it approaches a fixed point. Let's assume that $\gv \in C^1$ (and therefore that $\hxo \in C^1$), and that a fixed point $\xv^*$ of $\hxo$ exists.
+   We want to determine a condition for which this sequence is stable, that is, for which it approaches a fixed point.
+   Let's assume that $\gv \in C^2$ (and therefore that $\hxo \in C^2$), that $\J_{\hxo}$ is nonsingular, and that a fixed point $\xv^*$ of $\hxo$ exists.
 
-   Let us also assume that $$\norm{\frac{d\hxo}{d\xv}(\xv^*)} \leq 1$$; equivalently, for all eigenvalues $\lambda_i$ of $J(\hxo)$, $\abs{\lambda_i} \leq 1$. Because $\hxo$ is continuous, this property holds for some neighborhood around $\xv^*$
+   Let us also assume that, for all eigenvalues $\lambda_{i}$ of the Jacobian $\J_{\hxo}(\xv^*)$, $\abs{\lambda_i} \leq 1$. Because $\hxo$ is continuous,
+   this property holds for some connected neighborhood around $\xv^*$.
 
-   Now, given some points $\xv$ and $\yv$, we have:
+   Now, given some points $\xv$ and $\yv$ in the neighborhood, we have:
 
-   $$\norm{\hxo(\yv) - \hxo(\xv)}=\norm{\int_{\xv}^{\yv} \frac{d\hxo}{d\xv}(\zv)\; d\zv}\leq\int_{\xv}^{\yv} \norm{\frac{d\hxo}{d\xv}(\zv) \; d\zv} \leq \int_{\xv}^{\yv} \norm{d\zv} = \norm{\xv - \yv}$$
+   $$\norm{\hxo(\yv) - \hxo(\xv)}=\norm{\int_{\xv}^{\yv} \J_{\hxo}(\zv)\; d\zv}$$
+   $$\leq\int_{\xv}^{\yv} \norm{\J_{\hxo}(\zv) \; d\zv} < \int_{\xv}^{\yv} \norm{1 \; d\zv} = \norm{\xv - \yv}$$
 
-   So:
+   [[latex-opt:marginnote][Note: The value of this line integral is unique, because each of the Jacobian's rows forms a conservative vector field.;-0.5in]]
 
-   $$\norm{\hxo(\yv) - \hxo(\xv)} \leq \norm{\xv - \yv}$$
+   So we have:
 
-   $\hxo$ is a contraction mapping, so by the Banach fixed point theorem, it must be stable around $\xv^*$.
+   $$\norm{\hxo(\yv) - \hxo(\xv)} < \norm{\xv - \yv}$$
 
+   That is, in the neighborhood of $\xv^*$, $\hxo$ is a contraction mapping. Therefore, by the Banach fixed point theorem, it must be stable around $\xv^*$.
 
+   Now we can ask: concretely, what do the eigenvalues of $\J_{\hxo}$ look like? We can compute:
 
+   $$\J_{\hxo}(\xv)
+   = \left(\xv - \left(\J_{\gv}(\xv_0)\right)^{-1} \gv(\xv)\right)'
+   = I - \left(\left(\J_{\gv}(\xv_0)\right)^{-1}\gv(\xv)\right)'
+   $$
 
-   We can rewrite a linear step of $h$ as $\hxo(x) = \diff{\hxo}{\xv}(\xv - \xv^*)$
+   Diagonalize to rewrite this last term as:
 
-   Let's also assume that the eigenvalues $\lambda_i$ of $\frac{d\hxo}{d\xv}$ are less than $1$ at $\mathbf{x^*}$. By continuity of the derivative, it follows that this property holds in some neighborhood of $\mathbf{x^*}$.
+   $$I - P^{-1}DP$$
 
-   If this property holds, then $\hxo$ is locally a contraction mapping
+   Now note:
 
-   So we need to know that $
+   $$I - P^{-1}DP = P^{-1}IP - P^{-1}DP = P^{-1}(I - D)P$$
 
-   ...need to shrink in this region... is that from the subtraction from x_n? or something else?
+   So the eigenvalues of $$\J_{\hxo}(\xv)$$ are equal to 1 minus the eigenvalues of $\left(\left(\J_{\gv}(\xv_0)\right)^{-1}\gv(\xv)\right)'$.
 
-   If we assume that $\gv$ is sufficiently nice, we can approximate it like so:
+   Therefore, for the sequence to converge, $\left(\left(\J_{\gv}(\xv_0)\right)^{-1}\gv(\xv)\right)'$ should have eigenvalues in the range $(0,2)$,
+   and $\xv_0$ should be near $\xv^*$. If these properties hold, then the sequence will converge to $\xv^*$.
 
-   $$\xv_{n+1} = \left(\xv_n - \left(\frac{d\gv}{d\xv}(\xv_0)\right)^{-1} \gv(\xv_n)\right)' \xv_n$$
+** Part 3
+   The proof is the same as before, but $\alpha$ can be tuned to put the eigenvalues of $\alpha\left(\left(\J_{\gv}(\xv_0)\right)^{-1}\gv(\xv)\right)'$ in the range $(0, 2)$ as long as those eigenvalues are positive.
 
-   $$= \left(I - \left(\left(\frac{d\gv}{d\xv}(\xv_0)\right)^{-1} \gv(\xv_n)\right)'\right) \xv_n$$
+** Part 4.
+   Define $\hv(\xv) = \xv^* - \gv(\xv + \xv^*)$. Then $\hv(\mathbf{0}) = \mathbf{0}$.
 
-   $$= \left(I - \gv(\xv_n) - \left(\frac{d\gv}{d\xv}(\xv_0)\right)^{-1}  \gv'(\xv_n) \right) \xv_n$$
-
-
-   note that this is a *necessary* condition, but not a *sufficient* condition.
-
-   ...look at eigenvalues of $$\left(\frac{d\gv}{d\xv}(\xv_0)\right)^{-1} \gv(\xv_n)'$$, from next q?
-       in 1d setting, that's... rate of change of the next intersect point as you move up and down the line.
-           wait no, rate of change of slope to that point.
-       can this be converted to a matrix exponential? i don't think so... wait, maybe?? if you expand out the sequence.
-            wait no, because you have... a bunch of $\gv(n)s added...? the gs and matrix multiplies are interleaved, it's not a straight exponential.
-       looks sorta like a mandelbrot set actually.
-       wait this is exactly a mandelbrot set! right?? if you take the right setting of $g(\xv_n)$, i think. or, if you didn't do quasi-newton. maybe.
-
-** part 3
-   can set $\alpha$ to get some other version of above.
-
-** part 4
-* problem 2
-** part 1
-   #+BEGIN_SRC julia :session jl :async yes
+* Problem 2
+** Part 1
+   #+BEGIN_SRC julia :session jl :async yes 
    using Plots, ForwardDiff, StaticArrays, Distributions, Test
+   pyplot()
 
    is_close(x,y) = abs(x - y) < .0000001
 
    function newton_quantile(cdf, y, x0; maxsteps=10000, pdf=x -> ForwardDiff.derivative(cdf, x))
        f = x -> cdf(x) - y
        x = x0
-
        for _ in 1:maxsteps
            px = x
            df = pdf(x)
            x = x - df \ f(x)
-
            if is_close(x, px)
                return x
            end
-
        end
-
        error("newton's method did not converge in step limit")
    end
 
    @test newton_quantile(x -> x, .2, .5) == .2
    @test newton_quantile(x -> x, .3, .5) == .3
    @test newton_quantile(x -> x, .9, .5) == .9
-   nothing
    #+END_SRC
 
    #+RESULTS:
+   : [32m[1mTest Passed[22m[39m
 
-** part 2
+   \begin{verbatim}
+   Test Passed
+   \end{verbatim}
+** Part 2
    #+BEGIN_SRC julia :session jl :async yes
    function my_quantile(d, y; x0 = mean(d), maxsteps=10000)
-       newton_quantile(x -> cdf(d, x), y, x0, maxsteps=maxsteps, pdf=x -> pdf(d, x))
+       newton_quantile(x -> cdf(d, x), y, x0, maxsteps=maxsteps,
+                       pdf=x -> pdf(d, x))
    end
 
    for d in [Gamma(5, 1), Normal(0, 1), Beta(2, 4)]
@@ -152,9 +205,11 @@
 
    #+RESULTS:
 
-   : [32m[1mTest Passed[22m[39m
-* problem 3
-** part 1
+   \begin{verbatim}
+   Test Passed
+   \end{verbatim}
+* Problem 3
+** Part 1
    #+BEGIN_SRC julia :session jl :async yes
    function calc_attractor!(out,r;warmup=400,x0=0.25)
        x = x0
@@ -170,13 +225,17 @@
    calc_attractor!(out, 2.9)
 
    @test is_close(out[1], (2.9 - 1) / 2.9)
-   nothing
    #+END_SRC
 
    #+RESULTS:
+   : [32m[1mTest Passed[22m[39m
 
-** part 2
-   #+BEGIN_SRC julia :session jl :async yes
+   \begin{verbatim}
+   Test Passed
+   \end{verbatim}
+
+** Part 2
+   #+BEGIN_SRC julia :session jl :async yes :results none
    n = 1000
    rs = 2.9:0.001:4
 
@@ -196,19 +255,20 @@
        ys = reshape(out[:, :, 2], :)
 
        plot(xs, ys, markershape=:rect, markerstrokewidth=0,
-            markersize=.01, markercolor=:black, markeralpha=0.01,
+            markersize=0.8, markercolor=:black, markeralpha=0.01,
             line=false, legend=false, foreground_color_border=:transparent,
-            foreground_color_axis=:transparent, format=:png, dpi=200,
-            seriestype=:scatter)
+            foreground_color_axis=:transparent, format=:png, dpi=400,
+            seriestype=:scatter, title="Bifurcations", fontfamily="ETBookOT")
    end
 
-   bifurcation_plot(calc_serial(n, rs))
+   savefig(bifurcation_plot(calc_serial(n, rs)), "bifurcation.png")
    #+END_SRC
 
-   #+RESULTS:
-   [[file:./.ob-jupyter/113a299d9224778627a97aff17a34766b5df8314.png]]
+   #+attr_latex: :float multicolumn
+   [[./bifurcation.png]]
 
-   #+BEGIN_SRC julia :session jl :async yes
+** Part 3
+   #+BEGIN_SRC julia :session jl :async yes :exports both
    using Base.Threads
    n = 150
 
@@ -242,7 +302,7 @@
 
    If we give the threads more work to do, the ratio changes:
 
-   #+BEGIN_SRC julia :session jl :async yes
+   #+BEGIN_SRC julia :session jl :async yes :exports both
    print("serial:  ")
    @time   calc_serial(n, rs, warmup=1000000)
    print("parallel:")
@@ -256,11 +316,13 @@
 
    Now the actual computation loop dominates and the parallel implementation is much faster.
 
-** part 4
+** Part 4
    TODO
 
-* extra
-  #+BEGIN_SRC jupyter-julia :session jl :async yes
+* Extra
+  Some other random stuff I did trying to understand newton's method.
+
+  #+BEGIN_SRC julia :session jl :async yes :results none
   g(x) = sin.(x)
 
   function newton(g, x0, n=10)
@@ -284,12 +346,7 @@
       end
       return out
   end
-  #+END_SRC
 
-  #+RESULTS:
-  : quasinewton (generic function with 2 methods)
-
-  #+BEGIN_SRC jupyter-julia :session jl :async yes
   function newtonplot(g, x0; n=10, op=newton, title="newton's method", xstar=0)
     n = 10
 
@@ -309,7 +366,8 @@
     if abs(xstar - xs[n]) < .01
       plot!(p, [xstar], [0.], marker=true, markercolor=RGB(.3,.9,0.), markerstrokewidth=0, markersize=5.)
     else
-      plot!(p, [xstar], [0.], marker=true,
+      plot!(p, [xstar], [0.], marker=true, markercolor=:red, markerstrokewidth=0, markersize=5.)
+    end
     xs = op(g, [x0], n)
     ys = g.(xs)
     xs = xs[:]
@@ -332,65 +390,22 @@
     p
   end
 
-  plot(newtonplot(g, 0.2, op=newton), newtonplot(g, 1.0, op=quasinewton, title="quasinewton method"), layout=(2,1))
+  png(plot(newtonplot(g, 1.0, op=newton), newtonplot(g, 1.0, op=quasinewton, title="quasinewton method"), layout=(2,1), format=:png, dpi=200, fontfamily="ETBookOT"), "comparison.png")
   #+END_SRC
 
-  #+RESULTS:
-  [[file:./.ob-jupyter/797e64a4f415b8bfe462e2f6b56946d71c2f8e7d.svg]]
+   [[./comparison.png]]
 
-#+BEGIN_SRC jupyter-julia :session jl :async yes :display gif
-  @gif for x in range(-1.3, 1.3, length=240)
-    plot(newtonplot(g, x, op=newton), newtonplot(g, x, op=quasinewton), layout=(2,1))
-  end
-#+END_SRC
-
-#+RESULTS:
-:RESULTS:
-: ┌ Info: Saved animation to
-: │   fn = /home/radical/dev/6.338/hw/hw1/tmp.gif
-: └ @ Plots /home/radical/.julia/packages/Plots/h3o4c/src/animation.jl:95
-#+begin_export html
-<img src="tmp.gif" />
-#+end_export
-:END:
-
-#+BEGIN_SRC jupyter-julia :session jl :async yes :display plain
+#+BEGIN_SRC julia :session jl :async yes :noeval
   anim = @animate for y in range(0, 2pi, length=180)
     x = cos(y) * 1.3
     plot(newtonplot(g, x, op=newton), newtonplot(g, x, op=quasinewton, title="quasinewton method"), layout=(2,1), dpi=200)
   end
 
   gif(anim, "newton.gif")
+  nothing
 #+END_SRC
 
 #+RESULTS:
-:RESULTS:
-: ┌ Info: Saved animation to
-: │   fn = /home/radical/dev/6.338/hw/hw1/newton.gif
-: └ @ Plots /home/radical/.julia/packages/Plots/h3o4c/src/animation.jl:95
-: Plots.AnimatedGif("/home/radical/dev/6.338/hw/hw1/newton.gif")
-:END:
-#+BEGIN_SRC julia :session jl :async yes
-   plot(randn(10,2)[:, 1], randn(10,2)[:, 2], markershape=:rect, markerstrokewidth=0, markersize=1, markercolor=:black, markeralpha=0.5, line=false, legend=false, foreground_color_border=:transparent, foreground_color_axis=:transparent, format=:png, dpi=200, seriestype=:scatter, fontfamily="Source Code Pro")
-#plotattr(:Series, mark)
-#+END_SRC
 
-#+RESULTS:
-[[file:./.ob-jupyter/17ff8f025e9ddcf567108218c02841001250976e.png]]
+  Link to the generated gif: https://i.imgur.com/vwmc64u.mp4
 
-#+BEGIN_SRC julia :session jl :async yes
-plotattr(:Plot)
-plotattr(:Series)
-plotattr("markersize")
-#+END_SRC
-
-#+RESULTS:
-: Defined Plot attributes are:
-: background_color, background_color_outside, display_type, dpi, extra_kwargs, fontfamily, foreground_color, html_output_format, inset_subplots, layout, link, overwrite_figure, plot_title, pos, show, size, tex_output_standalone, thickness_scaling, window_title
-: Defined Series attributes are:
-: arrow, bar_edges, bar_position, bar_width, bins, colorbar_entry, contour_labels, contours, fill_z, fillalpha, fillcolor, fillrange, group, hover, label, levels, line_z, linealpha, linecolor, linestyle, linewidth, marker_z, markeralpha, markercolor, markershape, markersize, markerstrokealpha, markerstrokecolor, markerstrokestyle, markerstrokewidth, match_dimensions, normalize, orientation, primary, quiver, ribbon, series_annotations, seriesalpha, seriescolor, seriestype, smooth, stride, subplot, weights, x, xerror, y, yerror, z
-: markersize {Number or AbstractVector}
-: markersizes, ms, msize
-:
-: Size (radius pixels) of the markers.
-: Series attribute,  default: 4

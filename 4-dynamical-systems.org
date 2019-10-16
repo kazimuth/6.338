@@ -94,7 +94,7 @@ if f is continuous, there must be a *neighborhood* where $||f' < 1||$
 
 now note:
 
-$$\abs{f(y) - f(x)} = \abs{\int_x^y f'(z) dz} \leq \abs{\int_x^y 1 dz} = \abs{y-x} $$
+$$\abs{f(y) - f(x)} = \abs{\int_x^y f'(z) dz} < \abs{\int_x^y 1 dz} = \abs{y-x} $$
 
 which is to say, $f$ is lipschitz, where we can use derivative as the lipschitz bound.
 

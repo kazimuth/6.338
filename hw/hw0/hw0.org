@@ -15,47 +15,46 @@
 #+LATEX_HEADER:   \renewcommand{\allcaps}[1]{\textls[15]{\MakeTextUppercase{#1}}}
 #+LATEX_HEADER:   \renewcommand{\smallcaps}[1]{\smallcapsspacing{\scshape\MakeTextLowercase{#1}}}
 #+LATEX_HEADER:   \renewcommand{\textsc}[1]{\smallcapsspacing{\textsmallcaps{#1}}}
+#+LATEX_HEADER:   % shove everything else in here so we don't mess with emacs latexpreview, which doesn't use lualatex
+#+LATEX_HEADER:   \usepackage{fontspec}
+#+LATEX_HEADER:   \setmainfont{ETBookOT}
+#+LATEX_HEADER:   \setmonofont[Scale=0.8]{Fantasque Sans Mono}
+#+LATEX_HEADER:   \renewcommand{\contentsname}{contents}
+#+LATEX_HEADER:   \titleformat{\chapter}%
+#+LATEX_HEADER:     [display]% shape
+#+LATEX_HEADER:     {\relax\ifthenelse{\NOT\boolean{@tufte@symmetric}}{\begin{fullwidth}}{}}% format applied to label+text
+#+LATEX_HEADER:     {\huge\thechapter}% label
+#+LATEX_HEADER:     {0pt}% horizontal separation between label and title body
+#+LATEX_HEADER:     {\huge\rmfamily}% before the title body
+#+LATEX_HEADER:     [\ifthenelse{\NOT\boolean{@tufte@symmetric}}{\end{fullwidth}}{}]% after the title body
+#+LATEX_HEADER:   \titleformat{\section}%
+#+LATEX_HEADER:     [hang]% shape
+#+LATEX_HEADER:     {\normalfont\Large}% format applied to label+text
+#+LATEX_HEADER:     {\thesection}% label
+#+LATEX_HEADER:     {1em}% horizontal separation between label and title body
+#+LATEX_HEADER:     {}% before the title body
+#+LATEX_HEADER:     []% after the title body
+#+LATEX_HEADER:   \titleformat{\subsection}%
+#+LATEX_HEADER:     [hang]% shape
+#+LATEX_HEADER:     {\normalfont\large\itshape}% format applied to label+text
+#+LATEX_HEADER:     {\thesubsection}% label
+#+LATEX_HEADER:     {1em}% horizontal separation between label and title body
+#+LATEX_HEADER:     {}% before the title body
+#+LATEX_HEADER:     []% after the title body
+#+LATEX_HEADER:   \renewcommand{\maketitle}{%
+#+LATEX_HEADER:     \begingroup
+#+LATEX_HEADER:       \setlength{\parindent}{0pt}%
+#+LATEX_HEADER:       \setlength{\parskip}{4pt}%
+#+LATEX_HEADER:       \LARGE\scshape\plaintitle\par
+#+LATEX_HEADER:       \Large\itshape\plainauthor\par
+#+LATEX_HEADER:       \Large\itshape\thedate\par
+#+LATEX_HEADER:     \endgroup
+#+LATEX_HEADER:     %\thispagestyle{plain}% suppress the running head
+#+LATEX_HEADER:     %\tuftebreak
+#+LATEX_HEADER:     %\@afterindentfalse\@afterheading% suppress indentation of the next paragraph
+#+LATEX_HEADER:   }
+#+LATEX_HEADER:   \usepackage{graphicx}
 #+LATEX_HEADER: \fi
-#+LATEX_HEADER: \usepackage{fontspec}
-#+LATEX_HEADER: \setmainfont{ETBookOT}
-#+LATEX_HEADER: \setmonofont[Scale=0.8]{Fantasque Sans Mono}
-
-#+LATEX_HEADER: \renewcommand{\contentsname}{contents}
-
-#+LATEX_HEADER: \titleformat{\chapter}%
-#+LATEX_HEADER:   [display]% shape
-#+LATEX_HEADER:   {\relax\ifthenelse{\NOT\boolean{@tufte@symmetric}}{\begin{fullwidth}}{}}% format applied to label+text
-#+LATEX_HEADER:   {\huge\thechapter}% label
-#+LATEX_HEADER:   {0pt}% horizontal separation between label and title body
-#+LATEX_HEADER:   {\huge\rmfamily}% before the title body
-#+LATEX_HEADER:   [\ifthenelse{\NOT\boolean{@tufte@symmetric}}{\end{fullwidth}}{}]% after the title body
-#+LATEX_HEADER: \titleformat{\section}%
-#+LATEX_HEADER:   [hang]% shape
-#+LATEX_HEADER:   {\normalfont\Large}% format applied to label+text
-#+LATEX_HEADER:   {\thesection}% label
-#+LATEX_HEADER:   {1em}% horizontal separation between label and title body
-#+LATEX_HEADER:   {}% before the title body
-#+LATEX_HEADER:   []% after the title body
-#+LATEX_HEADER: \titleformat{\subsection}%
-#+LATEX_HEADER:   [hang]% shape
-#+LATEX_HEADER:   {\normalfont\large\itshape}% format applied to label+text
-#+LATEX_HEADER:   {\thesubsection}% label
-#+LATEX_HEADER:   {1em}% horizontal separation between label and title body
-#+LATEX_HEADER:   {}% before the title body
-#+LATEX_HEADER:   []% after the title body
-#+LATEX_HEADER: \renewcommand{\maketitle}{%
-#+LATEX_HEADER:   \begingroup
-#+LATEX_HEADER:     \setlength{\parindent}{0pt}%
-#+LATEX_HEADER:     \setlength{\parskip}{4pt}%
-#+LATEX_HEADER:     \LARGE\scshape\plaintitle\par
-#+LATEX_HEADER:     \Large\itshape\plainauthor\par
-#+LATEX_HEADER:     \Large\itshape\thedate\par
-#+LATEX_HEADER:   \endgroup
-#+LATEX_HEADER:   %\thispagestyle{plain}% suppress the running head
-#+LATEX_HEADER:   %\tuftebreak
-#+LATEX_HEADER:   %\@afterindentfalse\@afterheading% suppress indentation of the next paragraph
-#+LATEX_HEADER: }
-#+LATEX_HEADER: \usepackage{graphicx}
 
 * problem 1
 
