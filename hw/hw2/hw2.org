@@ -67,6 +67,8 @@
 #+LATEX_HEADER: \newcommand{\hv}[0]{\mathbf{h}}
 #+LATEX_HEADER: \newcommand{\sv}[0]{\mathbf{s}}
 #+LATEX_HEADER: \newcommand{\uv}[0]{\mathbf{u}}
+#+LATEX_HEADER: \newcommand{\pv}[0]{\mathbf{p}}
+#+LATEX_HEADER: \newcommand{\kv}[0]{\mathbf{k}}
 #+LATEX_HEADER: \newcommand{\hxo}[0]{\mathbf{h}_0}
 
 #+LATEX_HEADER: \usepackage{mathtools}
@@ -103,12 +105,19 @@ using Plots
 
 * problem 1: parameter estimation
 ** part 1: dormand-prince / lotka-volterra
-We can define the lotka-volterra equation:
+The Lotka-Volterra equations are written:
+
+\begin{align*}
+\frac{dx}{dt} &= \alpha x - \beta x y\\
+\frac{dy}{dt} &= - \gamma y + \delta x y\\
+\end{align*}
+
+We can define a julia function:
 
 #+BEGIN_SRC julia :session jl :async yes :exports both
-function lotka_volterra(_t, v; p = [1.5, 1.0, 3.0, 1.0])
-    x = v[1]
-    y = v[2]
+function lotka_volterra(_t, u; p = [1.5, 1.0, 3.0, 1.0])
+    x = u[1]
+    y = u[2]
 
     α = p[1]
     β = p[2]
@@ -131,16 +140,16 @@ lotka_volterra(0.0, start)
 
 The general form of Runge-Kutta methods is:
 
-$$y_{n+1} = y_n + \Delta t \sum_{i=1}^s b_i k_i$$
+$$\uv_{n+1} = \uv_n + \Delta t \sum_{i} b_i \kv_i$$
 
 where
 
 \begin{align*}
- k_1 & = f(t_n, y_n), \\
- k_2 & = f(t_n+c_2\Delta t, y_n+\Delta t(a_{21}k_1)), \\
- k_3 & = f(t_n+c_3\Delta t, y_n+\Delta t(a_{31}k_1+a_{32}k_2)), \\
+ \kv_1 & = f(t_n, \uv_n), \\
+ \kv_2 & = f(t_n+c_2\Delta t, \uv_n+\Delta t(a_{21}\kv_1)), \\
+ \kv_3 & = f(t_n+c_3\Delta t, \uv_n+\Delta t(a_{31}\kv_1+a_{32}\kv_2)), \\
      & \ \ \vdots \\
- k_s & = f(t_n+c_s\Delta t, y_n+\Delta t(a_{s1}k_1+a_{s2}k_2+\cdots+a_{s,s-1}k_{s-1})).
+ \kv_s & = f(t_n+c_s\Delta t, \uv_n+\Delta t(a_{s1}\kv_1+a_{s2}\kv_2+\cdots+a_{s,s-1}\kv_{s-1})).
 \end{align*}
 
 Note: don't confuse this $\yv$ with the $y$ in lotka-volterra, $\yv$ encompasses both $y$ and $x$.
@@ -163,22 +172,22 @@ function runge_kutta_step_template(a, b, c, name; evals=size(a)[1])
     for i in 1:evals
         if i == 1
             t = :(t)
-            y = :(y)
+            u = :(u)
         else
             t = :(t + $(c[i]) * dt)
-            y_shifts = [:($(a[i,j]) * $(ks[j])) for j in 1:(i-1)]
-            y = :(y + dt * (+($(y_shifts...))))
+            u_shifts = [:($(a[i,j]) * $(ks[j])) for j in 1:(i-1)]
+            u = :(u + dt * (+($(u_shifts...))))
         end
-        line = :($(ks[i]) = f($t, $y))
+        line = :($(ks[i]) = f($t, $u))
 
         push!(lines, line)
     end
     body = Expr(:block, lines...)
     result_terms = [:($(b[i]) * $(ks[i])) for i in 1:evals]
     name = Symbol(name)
-    :(function $name(f, t, y; dt=0.25)
+    :(function $name(f, t, u; dt=0.25)
             $body
-            y + dt * (+($(result_terms...)))
+            u + dt * (+($(result_terms...)))
       end)
 end
 #+END_SRC
@@ -201,13 +210,13 @@ println("evaluate: \n", euler_step((t, v) -> 1.0, 1.0, 1.0; dt=0.25))
 #+RESULTS:
 #+begin_example
 template:
-function euler_step(f, t, y; dt=0.25)
-    #= In[7]:30 =#
+function euler_step(f, t, u; dt=0.25)
+    #= In[22]:30 =#
     begin
-        k1 = f(t, y)
+        k1 = f(t, u)
     end
-    #= In[7]:31 =#
-    y + dt * +(1.0k1)
+    #= In[22]:31 =#
+    u + dt * +(1.0k1)
 end
 evaluate:
 1.25
@@ -237,18 +246,18 @@ println("evaluate:\n", dormand_prince_step((t, v) -> 1.0, 1.0, 1.0; dt=0.25))
 #+RESULTS:
 #+begin_example
 template:
-function dormand_prince_step(f, t, y; dt=0.25)
-    #= In[7]:30 =#
+function dormand_prince_step(f, t, u; dt=0.25)
+    #= In[3]:30 =#
     begin
-        k1 = f(t, y)
-        k2 = f(t + 0.2dt, y + dt * +(0.2k1))
-        k3 = f(t + 0.3dt, y + dt * (0.075k1 + 0.225k2))
-        k4 = f(t + 0.8dt, y + dt * (0.9777777777777777k1 + -3.7333333333333334k2 + 3.5555555555555554k3))
-        k5 = f(t + 0.8888888888888888dt, y + dt * (2.9525986892242035k1 + -11.595793324188385k2 + 9.822892851699436k3 + -0.2908093278463649k4))
-        k6 = f(t + 1.0dt, y + dt * (2.8462752525252526k1 + -10.757575757575758k2 + 8.906422717743473k3 + 0.2784090909090909k4 + -0.2735313036020583k5))
+        k1 = f(t, u)
+        k2 = f(t + 0.2dt, u + dt * +(0.2k1))
+        k3 = f(t + 0.3dt, u + dt * (0.075k1 + 0.225k2))
+        k4 = f(t + 0.8dt, u + dt * (0.9777777777777777k1 + -3.7333333333333334k2 + 3.5555555555555554k3))
+        k5 = f(t + 0.8888888888888888dt, u + dt * (2.9525986892242035k1 + -11.595793324188385k2 + 9.822892851699436k3 + -0.2908093278463649k4))
+        k6 = f(t + 1.0dt, u + dt * (2.8462752525252526k1 + -10.757575757575758k2 + 8.906422717743473k3 + 0.2784090909090909k4 + -0.2735313036020583k5))
     end
-    #= In[7]:31 =#
-    y + dt * (0.09114583333333333k1 + 0.0k2 + 0.44923629829290207k3 + 0.6510416666666666k4 + -0.322376179245283k5 + 0.13095238095238096k6)
+    #= In[3]:31 =#
+    u + dt * (0.09114583333333333k1 + 0.0k2 + 0.44923629829290207k3 + 0.6510416666666666k4 + -0.322376179245283k5 + 0.13095238095238096k6)
 end
 evaluate:
 1.25
@@ -259,13 +268,13 @@ Very nice.
 Now we can solve lotka-volterra:
 
 #+BEGIN_SRC julia :session jl :async yes :exports both
-function solve(f, v0 :: T; dt=0.25, tmin=0.0, tmax=10.0, step=dormand_prince_step) where {T}
+function solve(f, u0 :: T; dt=0.25, tmin=0.0, tmax=10.0, step=dormand_prince_step) where {T}
     outputs = T[]
-    v = v0
+    u = u0
     domain = tmin:dt:tmax
     for t in domain
-        push!(outputs, v)
-        v = step(f, t, v, dt=dt)
+        push!(outputs, u)
+        u = step(f, t, u, dt=dt)
     end
     (domain, outputs)
 end
@@ -275,81 +284,209 @@ end
 : solve (generic function with 1 method)
 
 #+BEGIN_SRC julia :session jl :async yes :exports both
-ts, vs = solve(lotka_volterra, start, dt=0.25, tmin=0.0, tmax=10.0)
-vs = hcat([Array(v) for v in vs]...)
+ts, us = solve(lotka_volterra, start, dt=0.25, tmin=0.0, tmax=10.0)
+us = hcat([[u[i] for u in us] for i in 1:2]...)
+plot(ts, us, format=:png, dpi=200, labels=["x", "y"])
 #+END_SRC
 
 #+RESULTS:
-: 2×41 Array{Float64,2}:
-:  1.0  1.19379   1.53126   2.04162   2.7729   …  1.06128  0.939485  1.01465
-:  1.0  0.619618  0.410147  0.301593  0.25871     2.52549  1.52361   0.915894
-
-#+BEGIN_SRC julia :session jl :async yes :exports both
-plot(ts, vs', format=:png, dpi=200)
-#+END_SRC
-
-#+RESULTS:
-[[file:./.ob-jupyter/87d2434b7dea3d055c255962f865efbcaf0ef599.png]]
+[[file:./.ob-jupyter/b27be8bcde0ff347ce1871cc1ed5426c5cf57422.png]]
 
 
 And, for comparison, a plot of the Euler solution with a much smaller step
 size:
 #+BEGIN_SRC julia :session jl :async yes :exports both
-ts_, vs_ = solve(lotka_volterra, start, dt=0.01, tmin=0.0, tmax=10.0, step=euler_step)
-vs_ = hcat([Array(v) for v in vs_]...)
-plot(ts_, vs_', format=:png, dpi=200)
+ts_, us_ = solve(lotka_volterra, start, dt=0.01, tmin=0.0, tmax=10.0, step=euler_step)
+us_ = hcat([[u[i] for u in us_] for i in 1:2]...)
+plot(ts_, us_, format=:png, dpi=200, labels=["x", "y"])
 #+END_SRC
 
 #+RESULTS:
-[[file:./.ob-jupyter/ad38c6f18c01826cf2bf546e9a90ef6747bddddb.png]]
+[[file:./.ob-jupyter/dc7fae37e0dfe8d7652748ee8251f0030fd7b5cd.png]]
 
 Pretty close!
 
 ** part 2: forward sensitivity
 
-   We want to compute $\frac{\partial u}{\partial p}|_t$, the sensitivity of the solution to the parameters at some time $t$.
+   We want to compute $\frac{\partial \uv}{\partial \pv}|_t$, the sensitivity of the solution to the parameters at some time $t$.
+   (Note that $\frac{\partial \uv}{\partial \pv}$ is a 2-by-4 matrix in the case of the lotka-volterra equations.)
 
    We have:
 
-   $$\frac{d}{dt}\frac{\partial u}{\partial p}=\frac{\partial f}{\partial u}\frac{\partial u}{\partial p}+\frac{\partial f}{\partial p_{j}}$$
+   $$\frac{\partial}{\partial t}\frac{\partial \uv}{\partial \pv}
+   =\frac{\partial \fv}{\partial \uv}\frac{\partial \uv}{\partial \pv}+\frac{\partial \fv}{\partial \pv}$$
 
-   Which is just a differential equation in $\frac{\partial u}{\partial p}$. Denote this term $\sv$; we can now integrate this value along with
-   $\uv$ in our solver.
+   So we have a (matrix) differential equation in $\frac{\partial \uv}{\partial \pv}$, which we can integrate along with $\uv$ in our solver.
 
-   $
+   m rows, n cols
 
+   Now we have:
 
+   $$\frac{\partial \fv}{\partial \uv}
+   =\left(\begin{array}{cccc}
+     \frac{\partial f_{1}}{\partial u_{1}} & \frac{\partial f_{1}}{\partial u_{2}} & \cdots & \frac{\partial f_{1}}{\partial u_{s}}\\
+     \frac{\partial f_{2}}{\partial u_{1}} & \frac{\partial f_{2}}{\partial u_{2}} & \cdots & \frac{\partial f_{2}}{\partial u_{s}}\\
+     \cdots & \cdots & \cdots & \cdots\\
+     \frac{\partial f_{s}}{\partial u_{1}} & \frac{\partial f_{s}}{\partial u_{2}} & \cdots & \frac{\partial f_{s}}{\partial u_{s}}
+   \end{array}\right)$$
 
-where
+   $$\frac{\partial \fv}{\partial \pv}
+   =\left(\begin{array}{cccc}
+     \frac{\partial f_{1}}{\partial p_{1}} & \frac{\partial f_{1}}{\partial p_{2}} & \cdots & \frac{\partial f_{1}}{\partial p_{s}}\\
+     \frac{\partial f_{2}}{\partial p_{1}} & \frac{\partial f_{2}}{\partial p_{2}} & \cdots & \frac{\partial f_{2}}{\partial p_{s}}\\
+     \cdots & \cdots & \cdots & \cdots\\
+     \frac{\partial f_{s}}{\partial p_{1}} & \frac{\partial f_{s}}{\partial p_{2}} & \cdots & \frac{\partial f_{s}}{\partial p_{s}}
+   \end{array}\right)$$
 
-$$J=\left(\begin{array}{cccc}
-\frac{\partial f_{1}}{\partial u_{1}} & \frac{\partial f_{1}}{\partial u_{2}} & \cdots & \frac{\partial f_{1}}{\partial u_{k}}\\
-\frac{\partial f_{2}}{\partial u_{1}} & \frac{\partial f_{2}}{\partial u_{2}} & \cdots & \frac{\partial f_{2}}{\partial u_{k}}\\
-\cdots & \cdots & \cdots & \cdots\\
-\frac{\partial f_{k}}{\partial u_{1}} & \frac{\partial f_{k}}{\partial u_{2}} & \cdots & \frac{\partial f_{k}}{\partial u_{k}}
-\end{array}\right)$$
+   Plugging in:
 
-is the Jacobian of the system,
+   $$\begin{align*}
+   \frac{dx}{dt} &= \alpha x - \beta x y\\
+   \frac{dy}{dt} &= - \gamma y + \delta x y\\
+   \end{align*}$$
 
-$$F_{j}=\left(\begin{array}{c}
-\frac{\partial f_{1}}{\partial p_{j}}\\
-\frac{\partial f_{2}}{\partial p_{j}}\\
-\vdots\\
-\frac{\partial f_{k}}{\partial p_{j}}
-\end{array}\right)$$
+   Gives:
 
-are the parameter derivatives, and
+   $$\begin{align*}\frac{\partial \fv}{\partial \uv}&=\left(\begin{array}{cc}
+     \frac{\partial }{\partial x} (\alpha x - \beta x y) & \frac{\partial}{\partial y} (\alpha x - \beta x y) \\
+     \frac{\partial }{\partial x} (- \gamma y + \delta x y) & \frac{\partial}{\partial y} (- \gamma y + \delta x y) \\
+   \end{array}\right)\\
+   &=\left(\begin{array}{cc}
+     \alpha - \beta y & -\beta x \\
+     -\delta y       & -\gamma y + \delta x \\
+   \end{array}\right)\end{align*}$$
 
-$$S_{j}=\left(\begin{array}{c}
-\frac{\partial y_{1}}{\partial p_{j}}\\
-\frac{\partial y_{2}}{\partial p_{j}}\\
-\vdots\\
-\frac{\partial y_{k}}{\partial p_{j}}
-\end{array}\right)$$
+   and:
 
-is the vector of sensitivities. Since this ODE is dependent on the values of the
-independent variables themselves, this ODE is computed simultaneously with the
-actual ODE system.
+   $$\begin{align*}\frac{\partial \fv}{\partial \pv} &=\left(\begin{array}{cccc}
+   \frac{\partial }{\partial \alpha} (\alpha x - \beta x y) & \frac{\partial }{\partial \beta} (\alpha x - \beta x y) &
+   \frac{\partial }{\partial \gamma} (\alpha x - \beta x y) & \frac{\partial }{\partial \delta} (\alpha x - \beta x y)\\
+   \frac{\partial }{\partial \alpha} (-\gamma y + \delta x y) & \frac{\partial }{\partial \beta} (-\gamma y + \delta x y) &
+   \frac{\partial }{\partial \gamma} (-\gamma y + \delta x y) & \frac{\partial }{\partial \delta} (-\gamma y + \delta x y)\\
+   \end{array}\right)\\
+   &=\left(\begin{array}{cccc}
+   x & x y & 0 & 0 \\
+   0 & 0 & -y & xy \\
+   \end{array}\right)\end{align*}$$
 
+   Great. Now, let's define some functions to wrap this sensitivity matrix into / out of a vector:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+function wrap_sensitivities(u, s)
+    return vcat(u, reshape(s, 8))
+end
+function unwrap_sensitivities(us)
+    u = us[1:2]
+    s = reshape(us[3:10], (2, 4))
+    u, s
+end
+u = [1., 2]
+s = [1. 2 3 4; 5 6 7 8]
+us = wrap_sensitivities(u, s)
+u_, s_ = unwrap_sensitivities(us)
+
+@assert u == u_ && s == s_
+#+END_SRC
+
+#+RESULTS:
+
+   And a function to operate on those vectors:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+function lotka_volterra_sens(_t, us, p)
+    u, s = unwrap_sensitivities(us)
+
+    x = u[1]
+    y = u[2]
+
+    α = p[1]
+    β = p[2]
+    γ = p[3]
+    δ = p[4]
+
+    dx = α*x - β*x*y
+    dy = - γ*y + δ*x*y
+
+    du = @SVector [dx, dy]
+
+    dfdu = @SMatrix [(α - β * y) (-β * x); (-δ * y) (-γ * y + δ * x)]
+    dfdp = @SMatrix [x (x*y) 0 0; 0 0 (-y) (x*y)]
+
+    ds = dfdu * s + dfdp
+
+    wrap_sensitivities(du, ds)
+end
+#+END_SRC
+
+#+RESULTS:
+: lotka_volterra_sens (generic function with 2 methods)
+
+   Now we can solve for $\uv$, along with the sensitivities:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+start_sensitivities = @SMatrix [0. 0 0 0; 0 0 0 0]
+start_ = wrap_sensitivities(start, start_sensitivities)
+p = @SVector [1.5, 1.0, 3.0, 1.0]
+
+ts, us = solve((t, u) -> lotka_volterra_sens(t, u, p), start_, dt=0.25, tmin=0.0, tmax=10.0)
+xy = hcat([[u[i] for u in us] for i in 1:2]...)
+
+plot(ts, xy, format=:png, dpi=200, labels=["x", "y"])
+#+END_SRC
+
+#+RESULTS:
+[[file:./.ob-jupyter/b27be8bcde0ff347ce1871cc1ed5426c5cf57422.png]]
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+u_names = ["x", "y"]
+p_names = ["alpha", "beta", "gamma", "delta"]
+
+ss = hcat([[unwrap_sensitivities(u)[2][i,j] for u in us] for i in 1:2 for j in 1:4]...)
+labels = ["d$(u_names[i])/d$(p_names[j])" for i in 1:2 for j in 1:4]
+plot(ts, sign.(ss) .* log.(abs.(ss)), format=:png, dpi=200, labels=labels)
+#+END_SRC
+
+#+RESULTS:
+[[file:./.ob-jupyter/fa5f1878f3384cf701caf0c986da200e576efdd8.png]]
+
+We can compare this to the results found by ~ForwardDiff~:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+using ForwardDiff
+
+function solve_p(p)
+    solve((t, u) -> lotka_volterra(t, u, p=p), start, dt=0.25, tmin=0.0, tmax=10.0)
+end
+
+ss_ = ForwardDiff.jacobian(solve_p, p)
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+# [goto error]
+#+begin_example
+MethodError: no method matching Float64(::ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4})
+Closest candidates are:
+  Float64(::Real, !Matched::RoundingMode) where T<:AbstractFloat at rounding.jl:194
+  Float64(::T<:Number) where T<:Number at boot.jl:718
+  Float64(!Matched::Int8) at float.jl:60
+  ...
+
+Stacktrace:
+ [1] convert(::Type{Float64}, ::ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4}) at ./number.jl:7
+ [2] macro expansion at /home/radical/.julia/packages/StaticArrays/3KEjZ/src/util.jl:11 [inlined]
+ [3] convert_ntuple at /home/radical/.julia/packages/StaticArrays/3KEjZ/src/util.jl:8 [inlined]
+ [4] SArray{Tuple{2},Float64,1,2}(::Tuple{ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4},ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4}}) at /home/radical/.julia/packages/StaticArrays/3KEjZ/src/SArray.jl:28
+ [5] convert at /home/radical/.julia/packages/StaticArrays/3KEjZ/src/convert.jl:10 [inlined]
+ [6] push!(::Array{SArray{Tuple{2},Float64,1,2},1}, ::SArray{Tuple{2},ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4},1,2}) at ./array.jl:852
+ [7] #solve#16(::Float64, ::Float64, ::Float64, ::Function, ::typeof(solve), ::Function, ::SArray{Tuple{2},Float64,1,2}) at ./In[5]:6
+ [8] (::getfield(Main, Symbol("#kw##solve")))(::NamedTuple{(:dt, :tmin, :tmax),Tuple{Float64,Float64,Float64}}, ::typeof(solve), ::Function, ::SArray{Tuple{2},Float64,1,2}) at ./none:0
+ [9] solve_p(::SArray{Tuple{4},ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4},1,4}) at ./In[16]:4
+ [10] static_dual_eval(::Type{ForwardDiff.Tag{typeof(solve_p),Float64}}, ::typeof(solve_p), ::SArray{Tuple{4},Float64,1,4}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/apiutils.jl:32
+ [11] vector_mode_jacobian(::Function, ::SArray{Tuple{4},Float64,1,4}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/jacobian.jl:173
+ [12] jacobian(::Function, ::SArray{Tuple{4},Float64,1,4}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/jacobian.jl:81
+ [13] top-level scope at In[16]:6
+#+end_example
+:END:
 
 ** part 3: parameter estimation
