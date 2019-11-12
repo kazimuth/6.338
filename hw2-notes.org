@@ -1,0 +1,18 @@
+#+TITLE: notes on hw2
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 10 november 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* sensitivity
+  http://www.math.pitt.edu/~cbsg/Materials/Sensitivity.pdf
+
+
+* zygote & forwarddiff
+** zygote
+   https://fluxml.ai/Zygote.jl/latest/
+
+   Core: one-function api, ~pullback()~
+
+   "adjoint" just refers to a transposed jacobian (-vector-product?)

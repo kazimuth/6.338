@@ -1,0 +1,204 @@
+#+TITLE: parameter estimation, reverse-mode AD, and inverse problems
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 28 october 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+#+LATEX_HEADER: \newcommand{\R}[0]{\mathbb{R}}
+#+LATEX_HEADER: \newcommand{\B}[0]{\mathcal{B}}
+#+LATEX_HEADER: \newcommand{\xv}[0]{\mathbf{x}}
+#+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
+#+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
+#+LATEX_HEADER: \newcommand{\lv}[0]{\mathbf{l}}
+#+LATEX_HEADER: \newcommand*\lgrad[1]{\bar{#1}}
+
+have a model. have data. fit model to data.
+
+this problem has many different names: *parameter estimation*, *inverse problems*, *training*, etc.
+
+
+* the shooting method
+
+  assume we have some model $u = f(p)$ where $p$ : parameters, $u$ : simulated data. how do we choose $p$?
+
+  the shooting model is, choose a cost function, e.g.:
+
+  $$C(p) = || f(p) - y ||$$
+
+  then, directly optimize this cost function.
+
+** optimization methods
+*** julia packages
+   - https://github.com/JuliaOpt/JuMP.jl
+     nonlinear optimization DSL
+   - https://github.com/JuliaNLSolvers/Optim.jl
+     simpler version of above?
+   - https://github.com/JuliaOpt/NLopt.jl
+     bindings to NLopt
+     https://nlopt.readthedocs.io/en/latest/NLopt_Introduction/
+*** global vs local
+    global much harder, computationally expensive; so we'll ignore it.
+
+*** derivative information
+    often used in local solvers.
+    simplest version is just gradient descent:
+
+    $$p_{i+1} = p_i - \alpha \frac{dC}{dP}$$
+
+    where $p$ is updated by walking down gradient.
+
+    can also attempt to find root of $\frac{dC}{dP} = 0$ using newton's method:
+
+    $$p_{i+1} = p_i - \left( \frac{d}{dp} \frac{dC}{dp} \right)^{-1} \frac{dC}{dp}$$
+
+    note: jacobian of gradient is the Hessian, so this is:
+
+    $$p_{i+1} = p_i - H(p_i)^{-1} \frac{dC}{dp}$$
+
+    where $H(p)_{ij} = \frac{dC}{\partial x_i \partial x_j}$, the Hessian matrix.
+
+    however, hessian is obnoxious, so people try to avoid it.
+
+    somewhere in the middle is *BGFS*; uses history of previously
+    calculated points to approximate hessian.
+
+    if you use constant length history, e.g. length 5, you get *l-BGFS*;
+    one of the most common large-scale optimization techniques.
+* the connection between optimization and difeqs
+  assume we want to follow gradient of training towards some minimum.
+  then we have:
+
+  $$p' = -\frac{dC}{dp}$$
+
+  applying Euler's method, we get
+
+  $$p_{n+1}=p_n -\alpha \frac{dC}{dp}$$
+
+  and we've recovered gradient descent.
+
+  to instead use implicit Euler, we do:
+
+  $$p_{n+1}-p_n+\alpha\frac{dC(p_{n+1})}{dp}=0$$
+
+  to solve this, we need to take Jacobian of the gradient, and thus arrive back at the Hessian as a fundamental quantity.
+
+  (*jhg*: can implicit methods help with adversarial examples / training?)
+
+* reverse mode AD
+  "Backpropagation", "reverse-mode AD", and "the adjoint technique" are terms for the same concept in different fields
+  (NNs, PL?, numerical optimization)
+
+  The core idea: we want to compute derivatives w.r.t. parameters without pushing all parameters through separately in forward mode
+
+** backprop formulation
+   Think of function as a Wengert graph (DAG of values tracking inputs and outputs, like tensorflow graph).
+
+   The graph terminates (WLOG) with some scalar loss $l$.
+
+   Use notation $\lgrad{z} := \frac{dl}{dz}$; the *sensitivity* of $l$ w.r.t. $z$.
+
+   Want to compute sensitivity w.r.t. to all parameters / inputs.
+
+   Core insight: if a value is used in multiple places, the sensitivity of the loss is the *sum* of the sensitivities coming from each use.
+
+   Imagine a knob controlling both the x and y parameters of some point. Say the loss is the distance from the origin.
+   Turning the knob by 1 results in a distance change of $2^{1/2}$.
+   Partial_x of sqrt(x^2 + y^2) is x/(sqrt(x^2 + y^2))
+   Partial_y of sqrt(x^2 + y^2) is y/(sqrt(x^2 + y^2))
+   Set y=x, sum these, we get partial_x = 2x/(sqrt(2 x^2)) = 2/sqrt(2) = sqrt(2), as expected.
+
+   More generally, the rule is:
+
+   - You sum terms from each outward arrow
+   - Each arrow has the derivative term of the end times the partial of the current term.
+   - Recurse backwards to build simple linear combination expressions.
+
+   You can thus think of the relations as a message passing relation in reverse to the forward pass.
+
+** pullback formulation
+   We have a function $\yv = \fv(\xv) : \R^n \to \R^m$, embedded in a larger Wengert graph.
+
+   For now, assume $\xv$ is only fed to $\fv(\xv)$.
+
+   We want to find $\lgrad{\xv}|_{\xv=\xv^*}$ (gradient of $l$ w.r.t $\xv$, at some specific value $\xv^*$)
+
+   By the chain rule:
+
+   $$\lgrad{\xv}|_{\xv=\xv^*} = \frac{dl}{d\xv}\biggm|_{\xv=\xv^*} =
+   \frac{dl}{d\yv} \frac{d\yv}{d\xv}\middle\biggm|_{\xv=\xv^*} := \B_\fv^{\xv^*}(\lgrad{\yv})$$
+
+   $\B_\fv^{\xv^*} : \R^m \to \R^n$ is the "pullback" of $\fv$ with at a point $\xv^*$. Given $\lgrad{\yv}$, and the values of *all* inputs
+   to $\fv$ (in this case just $\xv=\xv^*$), the pullback computes the sensitivity of the gradient w.r.t $\xv$ through $\fv$
+
+   Note: if $\fv$ takes multiple inputs we can just flatten them into one vector for notation's sake.
+
+   More generally, we can write this component-wise:
+
+   $$\lgrad{x_i} = \sum_j \frac{\partial l}{\partial y_j} \frac{\partial y_j}{\partial x_i} = \B^{x_i}_f(\lgrad{\yv})$$
+
+   Where $y_j$ is *any node* that uses $x_i$.
+
+** deriving matrix-vector product
+   Some rules:
+
+   - Multiplying by the matrix going forwards means multiplying by the transpose going backwards.
+     A term on the left stays on the left, and a term on the right stays on the right.
+
+   - Element-wise operations give element-wise multiplication.
+
+** the jacobian & jvps / vjps
+   Define program output $\lv$ to be a vector; function is a composition of $\fv_l \cdot \fv_{1-1} \cdot ... \cdot \fv_1$.
+
+   then the jacobian satisfies:
+
+   $J=J_l J_{l-1} ... J_1$
+
+   Forward mode computes a directional derivative by pushing through a column vector through this:
+
+   $Jv = J_l (J_{l-1} (... (J_1 v) ...))$
+
+   If $v$ is a standard basis vector, then we're calculating a *column* of the jacobian of the whole program.
+
+   Backprop, then, pushes through a *row* vector like this:
+
+   $v^T J = (( ... (v^T J_l) J_{l-1}) ...) J_1$
+
+   Where $v$ is whatever value we feed to the pullback for the whole program.
+   If we select $v$ to be a standard basis vector, we're computing a *row* of the jacobian of the whole program.
+   If $l \in \R^1$, this is just the gradient with regard to some parameter.
+
+   Why is the directional derivative the dual of the gradient of some output field?
+   In gradient, we select an output direction; in directional, we select an input direction.
+   See definition of jacobian:
+
+   \begin{equation*}
+\mathbf J = \begin{bmatrix}
+    \dfrac{\partial \mathbf{f}}{\partial x_1} & \cdots & \dfrac{\partial \mathbf{f}}{\partial x_n} \end{bmatrix}
+= \begin{bmatrix}
+    \dfrac{\partial f_1}{\partial x_1} & \cdots & \dfrac{\partial f_1}{\partial x_n}\\
+    \vdots & \ddots & \vdots\\
+    \dfrac{\partial f_m}{\partial x_1} & \cdots & \dfrac{\partial f_m}{\partial x_n} \end{bmatrix}.
+   \end{equation*}
+
+   So columns are particular outputs, rows are particular inputs.
+
+** custom pullbacks
+
+   In backpropagation, we just showed that when doing reverse accumulation, the rule is that multiplication forwards is multiplication
+by the transpose backwards. So if the forward way to compute the Jacobian in reverse is to replace the matrix by its transpose:
+
+
+
+
+  > If we had more layers, we could calculate the sensitivity (the derivative) of the output to the last layer,
+  then and then the sensitivity to the second layer back is the sensitivity of the last layer multiplied to that,
+  and the third layer back has the sensitivity of the second layer multiplied to it!
+
+** side note: mixed mode
+   Interestingly, one can find cases where mixing the forward and reverse mode results would give an asymtopically better result. For example, if a Jacobian was non-zero in only the first 3 rows and first 3 columns, then sparse forward mode would still require N partials and reverse mode would require M seeds. However, one forward mode call of 3 partials and one reverse mode call of 3 seeds would calculate all three rows and columns with O(1) work, as opposed to O(N) or O(M). Exactly how to make use of this insight in an automated manner is an open research question.
+
+** forward-over-reverse / hessian-free products
+   can use forward over reverse mode to compute jacobian of gradient, i.e. hessian
+
+   can also not do that and stay in a krylov subspace to end up with Hessian-free Newton Krylov

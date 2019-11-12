@@ -1,3 +1,5 @@
 How do we know that a point won't escape the neighborhood in stability arguments?
+-> answer: it can't, because in a stability argument the point is always moving inwards towards the fixed point
 
 Why does the absolute eigenvalues being less than 1 imply that a function is locally a contraction mapping?
+-> answer:

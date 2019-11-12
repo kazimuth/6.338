@@ -1,0 +1,295 @@
+#+TITLE: random questions
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 30 october 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* n-body problem
+let's examine the n-body problem.
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+using OrdinaryDiffEq
+using Plots
+
+function pleiades(du,u,p,t)
+    @inbounds begin
+        x = view(u,1:7)   # x
+        y = view(u,8:14)  # y
+        v = view(u,15:21) # x′
+        w = view(u,22:28) # y′
+        du[1:7] .= v # by definition
+        du[8:14].= w # by definition
+        for i in 15:28
+            du[i] = zero(u[1])
+        end
+        # accumulate accelerations due to other bodies
+        for i=1:7,j=1:7
+            if i != j
+                r = ((x[i]-x[j])^2 + (y[i] - y[j])^2)^(3/2)
+                du[14+i] += j*(x[j] - x[i])/r
+                du[21+i] += j*(y[j] - y[i])/r
+            end
+        end
+    end
+end
+maxt = 14.0
+tspan = (0.0,maxt)
+prob = ODEProblem(pleiades,[3.0,3.0,-1.0,-3.0,2.0,-2.0,2.0,3.0,-3.0,2.0,0,0,-4.0,4.0,0,0,0,0,0,1.75,-1.5,0,0,0,-1.25,1,0,0],tspan)
+sol = solve(prob,Vern8(),abstol=1e-10,reltol=1e-10)
+plot(sol,vars=((1:7),(8:14)), xlim=(-10, 10), ylim=(-10, 10), aspect_ratio=1, dpi=200, format=:png, fontfamily="ETBookOT", legend=false)
+#+END_SRC
+
+#+RESULTS:
+[[file:./.ob-jupyter/7be7d5d6709e292472104cc03eb589b3603ee2b1.png]]
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+function vectorplot!(p, u, dt=.1; colors=[:orange, :blue, :green, :purple, :brown, :teal, :pink], linewidth=3.)
+    x = view(u,1:7)   # x
+    y = view(u,8:14)  # y
+    xp = view(u,15:21) # x′
+    yp = view(u,22:28) # y′
+
+    for i in 1:7
+        plot!(p, Shape([(x[i], y[i]), (x[i] + dt*xp[i], y[i] + dt*yp[i])]), linecolor=colors[i], linewidth=linewidth)
+    end
+
+    p
+end
+#+END_SRC
+
+#+RESULTS:
+: vectorplot! (generic function with 2 methods)
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+dt = 0.1
+
+anim = @animate for y in range(0., maxt, step=dt/2.)
+    p = plot(xlim=(-10, 10), ylim=(-10, 10), markerstrokewidth=0, legend=false, foreground_color_border=:transparent,
+            foreground_color_axis=:transparent, aspect_ratio=1, dpi=200, fontfamily="ETBookOT", format=:png)
+    #plot!(p, sol, vars=((1:7),(8:14)))
+    vectorplot!(p, sol(y), dt)
+end
+gif(anim, "data/pleiades.gif")
+
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: ┌ Info: Saved animation to
+: │   fn = /home/radical/dev/6.338/data/pleiades.gif
+: └ @ Plots /home/radical/.julia/packages/Plots/h3o4c/src/animation.jl:95
+#+begin_export html
+<img src="data/pleiades.gif" />
+#+end_export
+:END:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+
+function step(u, dt)
+    du = zeros(size(u))
+    pleiades(du, u, 0.0, 0.0)
+    return u + du * dt
+end
+
+function explicit()
+    dt = 0.1
+    u = [3.0,3.0,-1.0,-3.0,2.0,-2.0,2.0,3.0,-3.0,2.0,0,0,-4.0,4.0,0,0,0,0,0,1.75,-1.5,0,0,0,-1.25,1,0,0]
+
+    p = plot(xlim=(-10, 10), ylim=(-10, 10), markerstrokewidth=0, legend=false, foreground_color_border=:transparent,
+             foreground_color_axis=:transparent, aspect_ratio=1, dpi=200)
+
+    anim = @animate for y in range(0., maxt, step=dt)
+        vectorplot!(p, u, dt, linewidth=1.3)
+        u = step(u, dt)
+
+        q = plot(xlim=(-10, 10), ylim=(-10, 10), markerstrokewidth=0, legend=false, foreground_color_border=:transparent,
+                 foreground_color_axis=:transparent, aspect_ratio=1, dpi=200)
+        vectorplot!(q, sol(y), dt)
+        plot(p, q)
+    end
+    anim
+end
+gif(explicit(), "data/pleiades_explicit.gif")
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: ┌ Info: Saved animation to
+: │   fn = /home/radical/dev/6.338/data/pleiades_explicit.gif
+: └ @ Plots /home/radical/.julia/packages/Plots/h3o4c/src/animation.jl:95
+#+begin_export html
+<img src="data/pleiades_explicit.gif" />
+#+end_export
+:END:
+
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+
+dt = 0.1
+
+anim = Animation()
+
+for y in range(0., maxt, step=dt/2.)
+    p = plot(xlim=(-10, 10), ylim=(-10, 10), markerstrokewidth=0, legend=false, foreground_color_border=:transparent,
+            foreground_color_axis=:transparent, aspect_ratio=1, dpi=200, fontfamily="ETBookOT", format=:png)
+    #plot!(p, sol, vars=((1:7),(8:14)))
+    vectorplot!(p, sol(y), dt)
+    frame(anim)
+end
+gif(anim, "data/pleiades.gif")
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: ┌ Info: Saved animation to
+: │   fn = /home/radical/dev/6.338/data/pleiades.gif
+: └ @ Plots /home/radical/.julia/packages/Plots/h3o4c/src/animation.jl:95
+#+begin_export html
+<img src="data/pleiades.gif" />
+#+end_export
+:END:
+
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+
+dt = 1.0
+
+anim = Animation()
+
+for y in range(0., maxt, step=dt)
+    # TODO: plot successive guesses of newton-raphson
+
+    p = plot(xlim=(-10, 10), ylim=(-10, 10), markerstrokewidth=0, legend=false, foreground_color_border=:transparent,
+            foreground_color_axis=:transparent, aspect_ratio=1, dpi=200, fontfamily="ETBookOT", format=:png)
+    #plot!(p, sol, vars=((1:7),(8:14)))
+    vectorplot!(p, sol(y), dt)
+    frame(anim)
+end
+gif(anim, "data/pleiades_implicit.gif")
+#+END_SRC
+* what the hell is stiffness
+  ...and why do implicit methods work better when it's present?
+
+  it's not to be confused with the fact that e.g. higher-order taylor
+  approximations give better results, right?
+
+  side question: could you use e.g. a fourier expansion instead of a taylor expansion? why would or wouldn't that work?
+
+  could you use a stiff solver e.g. for video games?
+
+  for neural network training?
+
+  what's the equivalent of runge-kutta for neural network training?
+
+** researchgate qna
+  https://www.researchgate.net/post/What_does_a_stiff_differential_equation_mean
+  rough answer: ratio between smallest and largest eigenvalue of Jacobian is large
+
+** mathworks
+  https://www.mathworks.com/company/newsletters/articles/stiff-differential-equations.html
+  > Stiffness is a subtle, difficult, and important - concept in the numerical solution of ordinary differential equations.
+
+  > It depends on the differential equation, the initial conditions, and the numerical method. Dictionary definitions of the word " stiff" involve terms like "not easily bent," "rigid," and "stubborn." We are concerned with a computational version of these properties.
+
+  > Imagine you are returning from a hike in the mountains. You are in a narrow canyon with steep walls on either side. An explicit algorithm would sample the local gradient to find the descent direction. But following the gradient on either side of the trail will send you bouncing back and forth from wall to wall, as in Figure 1. You will eventually get home, but it will be long after dark before you arrive. An implicit algorithm would have you keep your eyes on the trail and anticipate where each step is taking you. It is well worth the extra concentration.
+** youtube 1
+   https://www.youtube.com/watch?v=KS_6mxdzQws
+
+   "stiff" is hard to pin down
+
+   book says: you have slowly changing solutions combined with rapidly changing components
+   ...but that's not always right
+
+   perhaps the best way to define stiffness is "explicit methods fail miserably". lmao
+
+   but why does this happen?
+   see page 753 of Numerical Methods for Engineers, 6th ed." by Steven Chapra and Raymond Canale.
+
+   stability depends on delta t, for *whole problem*!
+
+   alternative: predictor-corrector methods
+
+   explicit runge-kutta recap: https://www.youtube.com/watch?v=NSPOSkq88lY&list=PLYdroRCLMg5PhZqzEJJlyLo55-1Vdd4Bd&index=12
+
+   note: runge-kutta don't use higher order derivatives! they just evaluate at multiple points!
+
+   some different methods: non-adaptive and adaptive
+
+   Cash-Karp
+** visualizing runge-kutta
+   https://www.haroldserrano.com/blog/visualizing-the-runge-kutta-method
+   https://www.youtube.com/watch?v=1YZnic1Ug9g
+
+   all runge-kutta methods (including euler!) have form:
+
+   $x(t_0 + \Delta t) = x(t_0) + (\mathrm{average\;slope}) \Delta t$
+
+   the difference is how you compute the average.
+
+   TODO: visualize runge-kutta w/ holoviews
+
+** linear multi-step methods (implicit methods)
+   https://www.youtube.com/watch?v=z8aTcOUPEt8&list=PLYdroRCLMg5PhZqzEJJlyLo55-1Vdd4Bd&index=13
+
+   lots of orders, depending on # of evaluations
+
+   - implicit euler's method
+   - predictor-corrector methods
+     + non-self-starting heun's method
+     + milne's method
+     + fourth-order adams' method
+     + higher-order methods
+
+   predictor-correctors use open method as predictor, and a closed method for corrector
+
+   e.g. heun's: midpoint for predictor, trapezoid for corrector; both newton-cotes, https://en.wikipedia.org/wiki/Newton-Cotes_formulas
+
+** implicit euler method
+   explicit: $y_{i+1} = y_i + f(x_i, y_i)\Delta t$
+
+   implicit: $y_{i+1} = y_i + f(x_{i+1}, y_{i+1})\Delta t$
+
+   in explicit euler's method, we use the slope ($f$) at the point; in implicit, we use the slope at the next point; which we can find using newton's method
+** predictor-corrector methods
+   https://en.wikipedia.org/wiki/Predictor-corrector_method
+
+   what's the connection between these & implicit euler?
+** numerical approach for solving stiff difeqs
+   https://globaljournals.org/GJSFR_Volume13/2-Numerical-Approach-for-Solving-Stiff.pdf
+
+   multistep methods:
+
+   Unfortunately, although a number of methods have been developed, and many more basic formulas suggested for stiff equations, until recently there has been little advice or guidance to help a practitioner choose a good method for his problem.
+
+   krylov subspace methods are fancier alternative
+
+   EPISODE is their neat FORTRAN lib that helps with this
+
+   (*jhg*: man, everybody wants to push their particular software when you're doing numerical stuff...)
+* how do we derive runge-kutta
+  https://math.stackexchange.com/questions/528856/explanation-and-proof-of-the-fourth-order-runge-kutta-method
+
+  question: why can't we just use autodifferentiation, instead of approximating with runge-kutta?
+
+  what's a multidimensional taylor expansion look like?
+  https://math.stackexchange.com/questions/246729/taylor-expansion-of-function-with-a-vector-as-variable
+  https://mathinsight.org/taylors_theorem_multivariable_introduction
+  https://en.wikipedia.org/wiki/Taylor's_theorem#Generalizations_of_Taylor's_theorem
+
+  ...it's complicated
+* what the hell is a tensor
+  https://en.wikipedia.org/wiki/Tensor
+
+  linear mapping between algebraic objects
+
+  can be described as multidimensional arrays
+
+  the simplest tensors, vectors and scalars, are used when you don't care about general relativity
+
+  *holors*: tensors, but without the linear properties
+  (e.g. neural network weights)
+  https://en.wikipedia.org/wiki/Parry_Moon#Holors
+
+* how do you go about solving things when special relativity is involved?
+  https://en.wikipedia.org/wiki/Classical_electromagnetism_and_special_relativity

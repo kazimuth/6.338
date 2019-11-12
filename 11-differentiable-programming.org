@@ -1,0 +1,40 @@
+#+TITLE: differentiable programming and neural differential equations
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 30 october 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* intro
+  Our last discussion focused on how, at a high mathematical level, one could in theory build programs which compute gradients in a fast manner by looking at the computational graph and performing reverse-mode automatic differentiation. Within the context of parameter identification, we saw many advantages to this approach because it did not scale multiplicatively in the number of parameters, and thus it is an efficient way to calculate Jacobians of objects where there are less rows than columns (think of the gradient as 1 row).
+
+  More precisely, this is seen to be more about sparsity patterns, with reverse-mode as being more efficient if there are "enough" less row seeds required than column partials (with mixed mode approaches sometimes being much better). However, to make reverse-mode AD realistically usable inside of a programming language instead of a compute graph, we need to do three things:
+
+  - We need to have a way of implementing reverse-mode AD on a language.
+
+  - We need a systematic way to derive "adjoint" relationships (pullbacks).
+
+  - We need to see if there are better ways to fit parameters to data, rather than performing reverse-mode AD through entire programs!
+
+* implementation of reverse-mode AD
+  static graphs
+
+  tracing-based AD / Wengert lists
+
+  source-to-source AD
+
+
+* reverse-mode rules: adjoints and implicit function theorem
+  want to derive high-level adjoint rules to minimize work
+
+  have some for:
+  linear solve
+  nonlinear solve
+  ODE solve (...but this is hard)
+
+
+
+* neural ODEs
+  are just ODEs with neural nets for $f$
+
+  so taking the hessian of a neural ode is just taking the jacobian of the net (if un-discretizing along training time axis)

@@ -1,0 +1,34 @@
+#+TITLE: notes on neural PDEs
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 30 october 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+i'm getting real weeeeird with it
+
+* neural ODEs
+https://arxiv.org/abs/1806.07366
+
+You can define ODE networks as the limit of recurrent neural networks
+
+Contributions:
+- define an adjoint for (not) backpropagation through black-box ODE solvers
+- show cool properties & applications of neural ODEs
+
+** scope and limitations
+   minibatching: ...
+
+   uniqueness: When do continuous dynamics have a unique solution? Picard’s existence the-orem (Coddington and Levinson, 1955) statesthat the solution to an initial value problem ex-ists and is unique if the differential equation isuniformly Lipschitz continuous inzand contin-uous int. This theorem holds for our model ifthe neural network has finite weights and usesLipshitz nonlinearities, such astanhorrelu
+
+   tolerances: Our framework allows the user to trade off speed for precision, but requiresthe user to choose an error tolerance on both the forward and reverse passes during training.  For sequence modeling, the default value of1.5e-8was used. In the classification and density estimation experiments, we were able to reduce the tolerance to1e-3and1e-5, respectively, without degradingperformance.
+
+   reconstructing forward trajectories: Reconstructing the state trajectory by running the dynamics backwards can introduce extra numerical error if the reconstructed trajectory diverges from theoriginal. This problem can be addressed by checkpointing: storing intermediate values ofzon the8
+forward pass, and reconstructing the exact forward trajectory by re-integrating from those points. Wedid not find this to be a practical problem, and we informally checked that reversing many layers ofcontinuous normalizing flows with default tolerances recovered the initial states.
+
+* FluxDiffEqs
+https://julialang.org/blog/2019/01/fluxdiffeq
+http://www.stochasticlifestyle.com/neural-jump-sdes-jump-diffusions-and-neural-pdes/
+
+* solving high-dimensional partial differential equations using deep learning
+https://www.researchgate.net/publication/318337291_Solving_high-dimensional_partial_differential_equations_using_deep_learning

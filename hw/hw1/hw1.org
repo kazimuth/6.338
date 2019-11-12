@@ -150,11 +150,15 @@
    and $\xv_0$ should be near $\xv^*$. If these properties hold, then the sequence will converge to $\xv^*$.
 
 ** Part 3
-   The proof is the same as before, but $\alpha$ can be tuned to put the eigenvalues of $\alpha\left(\left(\J_{\gv}(\xv_0)\right)^{-1}\gv(\xv)\right)'$ in the range $(0, 2)$ as long as those eigenvalues are positive.
+   The proof is the same as before, but $\alpha$ can be tuned to put the eigenvalues of $\alpha\left(\left(\J_{\gv}(\xv_0)\right)^{-1}\gv(\xv)\right)'$ in
+   the range $(0, 2)$ as long as those eigenvalues are positive.
 
 ** Part 4.
-   Define $\hv(\xv) = \xv^* - \gv(\xv + \xv^*)$. Then $\hv(\mathbf{0}) = \mathbf{0}$.
+   1. Define $\hv(\xv) = \xv^* - \gv(\xv^* - \xv)$. Then $\hv(\mathbf{0}) = \mathbf{0}$.
 
+   2. Change $\xv_0$ to $\xv^*$; then you're approximating the fixed-point iteration. Basically, quasi-newton will converge worse if there are larger eigenvalues at $\xv_0$.
+
+#+LATEX: \newpage
 * Problem 2
 ** Part 1
    #+BEGIN_SRC julia :session jl :async yes 
@@ -185,9 +189,6 @@
    #+RESULTS:
    : [32m[1mTest Passed[22m[39m
 
-   \begin{verbatim}
-   Test Passed
-   \end{verbatim}
 ** Part 2
    #+BEGIN_SRC julia :session jl :async yes
    function my_quantile(d, y; x0 = mean(d), maxsteps=10000)
@@ -205,9 +206,7 @@
 
    #+RESULTS:
 
-   \begin{verbatim}
-   Test Passed
-   \end{verbatim}
+#+LATEX: \newpage
 * Problem 3
 ** Part 1
    #+BEGIN_SRC julia :session jl :async yes
@@ -229,10 +228,6 @@
 
    #+RESULTS:
    : [32m[1mTest Passed[22m[39m
-
-   \begin{verbatim}
-   Test Passed
-   \end{verbatim}
 
 ** Part 2
    #+BEGIN_SRC julia :session jl :async yes :results none
@@ -294,8 +289,8 @@
 
    #+RESULTS:
    : threads: 8
-   : serial:    0.004059 seconds (1.11 k allocations: 2.587 MiB)
-   : parallel:  0.059704 seconds (203.17 k allocations: 12.623 MiB, 7.66% gc time)
+   : serial:    0.004238 seconds (1.11 k allocations: 2.587 MiB)
+   : parallel:  0.071325 seconds (203.21 k allocations: 12.625 MiB, 24.07% gc time)
 
    Currently the serial execution is much faster than the parallel execution. This is because the ~@threads~ macro spins up new threads
    every time it is called; most of that timing overhead comes from the time it takes the OS to create and destroy threads.
@@ -311,14 +306,72 @@
    #+END_SRC
 
    #+RESULTS:
-   : serial:    2.043056 seconds (1.11 k allocations: 2.588 MiB)
-   : parallel:  0.303830 seconds (1.33 k allocations: 2.620 MiB)
+   : serial:    2.119593 seconds (4.80 k allocations: 2.785 MiB)
+   : parallel:  0.321657 seconds (5.02 k allocations: 2.816 MiB)
 
    Now the actual computation loop dominates and the parallel implementation is much faster.
 
 ** Part 4
-   TODO
+   #+BEGIN_SRC julia :session jl :async yes :exports both
+   using Distributed
+   n = 150
 
+   addprocs(8)
+
+   @everywhere begin
+       function calc_attractor!(out,r;warmup=400,x0=0.25)
+           x = x0
+           for _ in 1:warmup
+               x = r * x * (1 - x)
+           end
+           for i in 1:length(out)
+               out[i] = x
+               x = r * x * (1 - x)
+           end
+       end
+   end
+   function calc_pmap(n, rs; warmup=400)
+       to_iter = collect(enumerate(rs))
+
+       function op(elem)
+           i, r = elem
+           slice = zeros(n)
+           calc_attractor!(slice, r, warmup=warmup)
+           slice
+       end
+       pmap(op, to_iter)
+   end
+
+   function calc_distributed(n, rs; warmup=400)
+       out = zeros(n, length(rs), 2)
+       to_iter = collect(enumerate(rs))
+
+       @sync @distributed for (i, r) in to_iter
+           out[:, i, 1] .= r
+           slice = @view out[:, i, 2]
+           calc_attractor!(slice, r, warmup=warmup)
+       end
+       out
+   end
+
+   print("serial:      ")
+   @time   calc_serial(n, rs)
+   print("pmap:        ")
+   @time calc_pmap(n, rs)
+   print("@distributed:")
+   @time calc_distributed(n, rs)
+   nothing
+   #+END_SRC
+
+   #+RESULTS:
+   : serial:        0.064901 seconds (218.82 k allocations: 13.368 MiB, 13.03% gc time)
+   : pmap:          0.521334 seconds (509.26 k allocations: 28.132 MiB, 2.97% gc time)
+   : @distributed:  0.932919 seconds (594.39 k allocations: 33.328 MiB, 0.79% gc time)
+
+** Part 5
+   Serial is most efficient for small data. Parallel is best when there's a little more work; and eventually you could scale out with distributed, if you really needed to. It's a question of when the parallel speedup overpowers the constant factor.
+
+#+LATEX: \newpage
 * Extra
   Some other random stuff I did trying to understand newton's method.
 

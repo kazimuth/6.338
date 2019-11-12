@@ -5,13 +5,19 @@
 #+OPTIONS: tex:t latex:t
 #+STARTUP: latexpreview
 
+#+LATEX_HEADER: \newcommand{\uv}[0]{\mathbf{u}}
+#+LATEX_HEADER: \newcommand{\zv}[0]{\mathbf{z}}
+
 https://mitmath.github.io/18337/lecture7/discretizing_odes
 
-#+BEGIN_SRC jupyter-julia :session jl :async yes
+* examples
+
+** lorenz equations
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
 function lorenz(du,u,p,t)
- du[1] = p[1]*(u[2]-u[1])
- du[2] = u[1]*(p[2]-u[3]) - u[2]
- du[3] = u[1]*u[2] - p[3]*u[3]
+    du[1] = p[1]*(u[2]-u[1])
+    du[2] = u[1]*(p[2]-u[3]) - u[2]
+    du[3] = u[1]*u[2] - p[3]*u[3]
 end
 u0 = [1.0,0.0,0.0]
 tspan = (0.0,20.0)
@@ -21,55 +27,162 @@ prob = ODEProblem(lorenz,u0,tspan,p)
 sol = solve(prob)
 using Plots
 plot(sol)
-#+END_SRC
+  #+END_SRC
 
-#+RESULTS:
-[[file:./.ob-jupyter/701839c4d96ed8bcb8672d4d6f166e28fe0606a6.svg]]
+  #+RESULTS:
+  [[file:./.ob-jupyter/82e496ab8a066432e82558b59b0e0fb671220e28.svg]]
 
-#+BEGIN_SRC jupyter-julia :session jl :async yes
+** n-body problem
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
 using OrdinaryDiffEq
+using Plots
 
 function pleiades(du,u,p,t)
-  @inbounds begin
-  x = view(u,1:7)   # x
-  y = view(u,8:14)  # y
-  v = view(u,15:21) # x′
-  w = view(u,22:28) # y′
-  du[1:7] .= v
-  du[8:14].= w
-  for i in 14:28
-    du[i] = zero(u[1])
-  end
-  for i=1:7,j=1:7
-    if i != j
-      r = ((x[i]-x[j])^2 + (y[i] - y[j])^2)^(3/2)
-      du[14+i] += j*(x[j] - x[i])/r
-      du[21+i] += j*(y[j] - y[i])/r
+    @inbounds begin
+        x = view(u,1:7)   # x
+        y = view(u,8:14)  # y
+        v = view(u,15:21) # x′
+        w = view(u,22:28) # y′
+        du[1:7] .= v
+        du[8:14].= w
+        for i in 15:28
+            du[i] = zero(u[1])
+        end
+        for i=1:7,j=1:7
+            if i != j
+                r = ((x[i]-x[j])^2 + (y[i] - y[j])^2)^(3/2)
+                du[14+i] += j*(x[j] - x[i])/r
+                du[21+i] += j*(y[j] - y[i])/r
+            end
+        end
     end
-  end
-  end
 end
 tspan = (0.0,3.0)
 prob = ODEProblem(pleiades,[3.0,3.0,-1.0,-3.0,2.0,-2.0,2.0,3.0,-3.0,2.0,0,0,-4.0,4.0,0,0,0,0,0,1.75,-1.5,0,0,0,-1.25,1,0,0],tspan)
+sol = solve(prob,Vern8(),abstol=1e-10,reltol=1e-10)
+plot(sol)
+  #+END_SRC
+
+  #+RESULTS:
+  [[file:./.ob-jupyter/c2aa623b8b84ec82465224f45b06fb5a37b3470c.svg]]
+
+
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
+maxt = 14.0
+tspan = (0.0,maxt)
+prob = ODEProblem(pleiades,[3.0,3.0,-1.0,-3.0,2.0,-2.0,2.0,3.0,-3.0,2.0,0,0,-4.0,4.0,0,0,0,0,0,1.75,-1.5,0,0,0,-1.25,1,0,0],tspan)
+sol = solve(prob,Vern8(),abstol=1e-10,reltol=1e-10)
+plot(sol,vars=((1:7),(8:14)))
+  #+END_SRC
+
+  #+RESULTS:
+  [[file:./.ob-jupyter/b20285f43177bfb16f09cacf727957209269591f.svg]]
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+
+function vectorplot!(p, u, dt=.1, colors=[:orange, :blue, :green, :purple, :brown, :teal, :pink])
+    x = view(u,1:7)   # x
+    y = view(u,8:14)  # y
+    xp = view(u,15:21) # x′
+    yp = view(u,22:28) # y′
+
+    for i in 1:7
+        plot!(p, Shape([(x[i], y[i]), (x[i] + dt*xp[i], y[i] + dt*yp[i])]), linecolor=colors[i], linewidth=3)
+    end
+
+    p
+end
+
+dt = 0.1
+
+anim = @animate for y in range(0., maxt, step=dt/2.)
+    p = plot(xlim=(-10, 10), ylim=(-10, 10), markerstrokewidth=0, legend=false, foreground_color_border=:transparent,
+            foreground_color_axis=:transparent, aspect_ratio=1, dpi=200, fontfamily="ETBookOT")
+    #plot!(p, sol, vars=((1:7),(8:14)))
+    vectorplot!(p, sol(y), dt)
+end
+gif(anim, "data/plieades.gif")
 #+END_SRC
 
 #+RESULTS:
-: [36mODEProblem[0m with uType [36mArray{Float64,1}[0m and tType [36mFloat64[0m. In-place: [36mtrue[0m
-: timespan: (0.0, 3.0)
-: u0: [3.0, 3.0, -1.0, -3.0, 2.0, -2.0, 2.0, 3.0, -3.0, 2.0  …  0.0, 1.75, -1.5, 0.0, 0.0, 0.0, -1.25, 1.0, 0.0, 0.0]
+:RESULTS:
+: ┌ Info: Saved animation to
+: │   fn = /home/radical/dev/6.338/data/plieades.gif
+: └ @ Plots /home/radical/.julia/packages/Plots/h3o4c/src/animation.jl:95
+#+begin_export html
+<img src="data/plieades.gif" />
+#+end_export
+:END:
 
-#+BEGIN_SRC jupyter-julia :session jl :async yes
+
+** population ecology: lotka volterra
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
+tspan = (0.0,200.0)
+prob = ODEProblem(pleiades,[3.0,3.0,-1.0,-3.0,2.0,-2.0,2.0,3.0,-3.0,2.0,0,0,-4.0,4.0,0,0,0,0,0,1.75,-1.5,0,0,0,-1.25,1,0,0],tspan)
+sol = solve(prob,Vern8(),abstol=1e-10,reltol=1e-10)
+plot(sol,vars=((1:7),(8:14)))
+  #+END_SRC
+
+** biochemistry: robertson equations
+   this is actually where the classically "hard"
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+using Sundials, ParameterizedFunctions
+function rober(du,u,p,t)
+  y₁,y₂,y₃ = u
+  k₁,k₂,k₃ = p
+  du[1] = -k₁*y₁+k₃*y₂*y₃
+  du[2] =  k₁*y₁-k₂*y₂^2-k₃*y₂*y₃
+  du[3] =  k₂*y₂^2
+end
+prob = ODEProblem(rober,[1.0,0.0,0.0],(0.0,1e5),(0.04,3e7,1e4))
+sol = solve(prob,Rosenbrock23())
+plot(sol)
 #+END_SRC
 
 #+RESULTS:
-: Defined Series attributes are:
-: arrow, bar_edges, bar_position, bar_width, bins, colorbar_entry, contour_labels, contours, fill_z, fillalpha, fillcolor, fillrange, group, hover, label, levels, line_z, linealpha, linecolor, linestyle, linewidth, marker_z, markeralpha, markercolor, markershape, markersize, markerstrokealpha, markerstrokecolor, markerstrokestyle, markerstrokewidth, match_dimensions, normalize, orientation, primary, quiver, ribbon, series_annotations, seriesalpha, seriescolor, seriestype, smooth, stride, subplot, weights, x, xerror, y, yerror, z
-: linecolor {Color Type}
-: lc, lcolor, lcolour, linecolors, linecolour
+:RESULTS:
+# [goto error]
+: ArgumentError: Package Sundials not found in current path:
+: - Run `import Pkg; Pkg.add("Sundials")` to install the Sundials package.
 :
-: Color of the line (for path and bar stroke).  `:match` will take the value from `:seriescolor`, (though histogram/bar types use `:black` as a default).
-: Series attribute,  default: auto
+:
+: Stacktrace:
+:  [1] require(::Module, ::Symbol) at ./loading.jl:876
+:  [2] top-level scope at In[4]:1
+:END:
+* geometric properties
+  the simplest ODE is the scalar linear ODE
 
-#+BEGIN_SRC jupyter-julia :session jl :async yes
-#+END_SRC
+  $$u' = \alpha u$$
 
+  analytic solution:
+
+  $u(t)=u(0)e^{\alpha t}$
+
+  from this solution we have:
+
+  if $Re(\alpha) > 0$, $\lim_{t \to \infty} u(t) = \infty$
+
+  if $Re(\alpha) < 0$, $\lim_{t \to \infty} u(t) = 0$
+
+  if $Re(\alpha) = 0$, solution is constant or periodic
+
+  in multivariate version $\uv' = A\uv$
+
+  assume $A$ is diagonalizable, diagonalize:
+
+  $\uv' = P^{-1}DP\uv$
+  $P\uv' = DP\uv$
+
+  change coordinates $\zv = P\uv$
+
+  so we have
+
+  $\zv' = D\zv$
+
+  but decomposed by eigenvalues. so each individual component can be treated on its own, and will behave how we talked before.
+
+  this also applies to the linearization of nonlinear ODEs.
+
+* numerically solving ODEs

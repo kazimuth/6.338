@@ -5,232 +5,461 @@
 #+OPTIONS: tex:t latex:t
 #+STARTUP: latexpreview
 
-* intro
-  forward-mode AD via high dimensional algebras
+#+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
+#+LATEX_HEADER: \newcommand{\eps}[0]{\epsilon}
+#+LATEX_HEADER: \newcommand{\cK}[0]{\mathcal{K}}
 
-* machine epsilon and roundoff error
-  64 bits of accuracy gives you ~16 base-10 digits of precision
-  that is, the roundoff error is
+#+LATEX_HEADER: \newcommand{\R}[0]{\mathbb{R}}
+#+LATEX_HEADER: \newcommand{\B}[0]{\mathcal{B}}
+#+LATEX_HEADER: \newcommand{\xv}[0]{\mathbf{x}}
+#+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
+#+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
+#+LATEX_HEADER: \newcommand{\lv}[0]{\mathbf{l}}
+#+LATEX_HEADER: \newcommand{\vv}[0]{\mathbf{v}}
+#+LATEX_HEADER: \newcommand*\lgrad[1]{\bar{#1}}
 
-  there are as many floats from 0-1 as there are from 1-$\infty$
+#+LATEX_HEADER: \newcommand{\eps}[0]{\epsilon}
 
-  (*jhg*: can you shift computations to be around 0?)
+#+LATEX_HEADER: \newcommand*{\approxident}{%
+#+LATEX_HEADER: \mathrel{\vcenter{\offinterlineskip
+#+LATEX_HEADER: \hbox{$\sim$}\vskip-.35ex\hbox{$\sim$}\vskip}}}
 
-  there are fixed point numbers. why not use them? why is this this way?
 
-  floating point representation:
+* forward-mode AD via high-dimensional algebras
+** machine epsilon and roundoff error
+   64 bits of accuracy gives you ~16 base-10 digits of precision
+   that is, the roundoff error is
 
-  [sign] [mantissa] [exponent]
+   there are as many floats from 0-1 as there are from 1-$\infty$
 
-  $\pm \; \mathtt{m.antissa} * 2^\mathtt{exponent}$
+   (*jhg*: can you shift computations to be around 0?)
 
-  machine epsilon $E$ s.t. $1 + E = 1$
+   there are fixed point numbers. why not use them? why is this this way?
 
-  #+BEGIN_SRC jupyter-julia :session jl :async yes
+   floating point representation:
+
+   [sign] [mantissa] [exponent]
+
+   $\pm \; \mathtt{m.antissa} * 2^\mathtt{exponent}$
+
+   machine epsilon $E$ s.t. $1 + E = 1$
+
+   #+BEGIN_SRC jupyter-julia :session jl :async yes
   e = eps(1.)
   e, 1. + (e * .5), 1. + (e * .50001)
-  #+END_SRC
+   #+END_SRC
 
-  #+RESULTS:
-  | 2.220446049250313e-16 | 1.0 | 1.0000000000000002 |
+   #+RESULTS:
+   | 2.220446049250313e-16 | 1.0 | 1.0000000000000002 |
 
-  example: subtraction:
+   example: subtraction:
 
-  #+BEGIN_SRC
+   #+BEGIN_SRC
     1.512832...
   - 1.512848...
   -------------
   - 0.000016...
-  #+END_SRC
+   #+END_SRC
 
-  you lose 5 digits of precision!
+   you lose 5 digits of precision!
 
- #+BEGIN_SRC jupyter-julia :session jl :async yes
+  #+BEGIN_SRC jupyter-julia :session jl :async yes
   e = 1e-10rand()
   @show e
   @show 1 + e
   ()
- #+END_SRC
-
- #+RESULTS:
- :RESULTS:
- : e = 7.0183027074124604e-12
- : 1 + e = 1.0000000000070184
-
- :END:
-
-  computation of derivatives: look at *finite differencing*:
-
-  $$f'(x) = \lim_{\epsilon \to 0} \frac{f(x + \epsilon) - f(x)}{\epsilon}$$
-
-  really neat plot of numerical error as epsilon shrinks
-
-  best you can ever do with finite differencing is ~7 base-10 digits of accuracy
-
-  this is alarming! with jacobian + factoring, we're down to 3 digits of accuracy for each step!
-
-* differencing in a different dimension: complex step differentiation
-  we need to never take a small number and add it to a large number. can we do differentiation that keeps big/small in separate dimensions?
-
-  simplest multi-dimensional number? a complex number!
-
-  okay, let's say we've got $x \in \mathbb{R}$, want to take derivative of $f$: complex analytic
-
-  expand out a taylor series in complex numbers:
-
-  $f(x + ih) = f(x) + f'(x)ih + O(h^2)$
-
-  rearrange, divide h out:
-
-  $$if'(x) = \frac{f(x+ih) - f(x)}{h} + O(h)$$
-
-  okay, $i f'$ is purely imaginary: $x \in \mathbb{R}$
-
-  take $Im$ of both sides:
-
-  $$if'(x) = \frac{Im(f(x+ih) - f(x))}{h} + O(h^2) = \frac{Im(f(x+ih))}{h} + O(h^2)$$
-
-  basically, this makes the big and small numbers never interact!
-
-  why does this work? we take a step in a direction that's orthogonal to the real numbers.
-
-  okay, can we do this in higher dimensions?
-
-* derivatives as nilpotent sensitivities
-  this can be made rigorous with nonstandard analysis, there's a good book about it
-
-  $f(a + \epsilon) = f(a) + f'(a)\epsilon + o(\epsilon)$
-
-  formally set $\epsilon^2 = 0$
-  ... you can do this if you don't take contradiction (????????)
-
-  represent a function and it's derivative: $f(a + \epsilon) = f(a) + \epsilon f'(a)$
-
-  now, because we're basing this on nonstandard analysis, just treat $\epsilon$ as a dimensional signifier
-
-  (*jhg*: basically a different way of approaching the other AD lecture, using nonstandard analysis instead of dropping higher-order terms of a taylor expansion)
-
-  can define operations on dual numbers; can then find derivatives via algebra, discarding $\epsilon^2$ terms
-
-  break things down to *primitives*; can just use $+$ and $-$ and compute approximations to $\sin$ via actual taylor-expansion implementation,
-  or shortcut and define it as $\cos$ or whatever
-
-  basically: you're using the compiler to raise (/ lower?) your functions to dual numbers
-
-  (*jhg*: wait, how do you take derivatives of functions in julia again?)
-
-* directional derivative and gradient of functions
-  $$\lim_{\epsilon \to 0} \frac{(f(\mathbf{x} + \epsilon \mathbf{v}) - f(\mathbf{x})}{\epsilon} = [\nabla f(\mathbf{x}) \cdot \mathbf{v}]$$
-
-  ...raise to duals...
-
-  heyy, it works (to find $[\nabla f(\mathbf{x}) \cdot \mathbf{v}]$)
-
-  to calculate in a different direction:
-
-  ...something something...
-
-  you end up with an $\epsilon_1\epsilon_2$ term, which we defined as $0$
-
-  ...basically, you don't have to repeat your primals, (*jhg*: i.e. the forward pass?)...
-
-  ...calculating the gradient is just computing the derivative in all the basis (function?) directions...
-
-  so, backpropagation
-
-* forward-mode AD as jacobian-vector product
-  $Jv = w$
-  $f'(x) v = w$
-  $f'(x) =$ jacobian matrix $\frac{ \partial f_i }{ \partial x_i }$, column varies $x_i$, row varies $f_i$
-
-  so you're doing matrix-vector multiplication w/ jacobian
-
-  with dual-number derivatives, you're pushing forward ... or ..., which are equivalent
-
-  so, we can represent higher-dimensional
-
-  so represent dual number $d$ w/ vector $[x y] = [x_0, y_0] = [v_{1x}, v_{1y}] \epsilon_1 + [v_{2x}, v_{2y}] \epsilon_2$
-  $= d + v_1 \epsilon_1 + v_2 \epsilon_2$
-
-  $f(d) = f(d_0) + f'(d)v_1 \epsilon_1 + f'(d)v_2 \epsilon_2$
-
-  higher-dimensional dual numbers are computing higher-dimensional
-
-  you can define a dual number $d^*$ s.t. $f(d^*)$ is the full jacobian! just put a direction and epsilon for every basis direction!
-
-  so now we're basically just pushing through "what is your value, what is your jacobian"
-
-  now we can start thinking of multi-dual $\mathbf{D} = \mathbf{D_0} + \Sigma \mathbf{\epsilon}$ (note: $\Sigma$ is a matrix
-
-  $f(D) = f(D_0) + f'(D_0) \Sigma \epsilon$
-
-  higher-order derivatives: add more epsilons! can make *hyperduals!* woo!
-  (it's actually really hard to do algebra once you're working with that many terms...)
-
-  that is the most general version of forward-mode AD
-
-  this is a formally correct result, we're not thinking of this just in terms of "dropping higher order terms"
-
-  note: pushing things through to implementations of "primitive functions" can be done because julia has its own libm implementation!
-  not as good as some proprietary ones (.5x performance), but makes things reproducible, even across hardware platforms like GPU
-
-  forward-mode AD at compile time is solved, reverse-mode AD is much harder
-
-* re-digesting sparse differentiation
-  [we can think of this as selecting special $v$'s based on a graph-coloring problem]
-
-  ok, newton's method.
-
-  how do we solve $Ja=b$? factorize jacobian, $J=LU$, $LUa=b$
-
-  $L$ is lower triangular, $U$ is upper triangular, want to find $L$ and $U$ to find original jacobian
-
-  lower triangular solve:
-
-    $\alpha a = v_1$
-    $\beta a + \gamma b = v_2$
-    find [a, b]
-
-  ...can add more stuff
-
-  backsubstitution:
-    $O(n^2)$ because it's half a square
-
-  finding $LU$ is just gaussian elimination
-
-  ok, this isn't finding a true inverse but it's still $O(n)$... why do we care?
-
-  in homework, we'll prove that there's a variant of newton's method where you only need to use jacobian of $x_0$ instead of $x_k$.
-
-  a "quasi-newton's method", which we can show will converge.
-
-  can also do "symbolic factorization" to generalize LU factorizations to sparse systems.
-
-* jacobian-free newton krylov
-  what if your factorizations don't fit in memory?
-
-  newton's method:
-  $x_{k+1} = x_k - (g'(x_k))^{-1} g(x_k)$
-
-  note: nothing special about $g$ vs $f$
-
-  $g'(x_k)v = w$
-  $x_k+1 = x_k - w$
-
-  now we have jacobian-vector product. can we use AD?
-
-  yes! we can use previous derivation to compute jacobian-vector products *without* computing full jacobian.
-
-  okay, now can we use this to solve things?
-
-  ...
-
-  we have cauchy sequence somehow involved with $Jw - b = 0$
-
-  ...TODO: reread all this nonsense...
-
-  #+BEGIN_SRC jupyter-julia :session jl :async yes
-
   #+END_SRC
 
-  TODO: choose final project
+  #+RESULTS:
+  :RESULTS:
+  : e = 7.0183027074124604e-12
+  : 1 + e = 1.0000000000070184
+
+  :END:
+
+   computation of derivatives: look at *finite differencing*:
+
+   $$f'(x) = \lim_{\epsilon \to 0} \frac{f(x + \epsilon) - f(x)}{\epsilon}$$
+
+   really neat plot of numerical error as epsilon shrinks
+
+   best you can ever do with finite differencing is ~7 base-10 digits of accuracy
+
+   this is alarming! with jacobian + factoring, we're down to 3 digits of accuracy for each step!
+
+** differencing in a different dimension: complex step differentiation
+   we need to never take a small number and add it to a large number. can we do differentiation that keeps big/small in separate dimensions?
+
+   simplest multi-dimensional number? a complex number!
+
+   okay, let's say we've got $x \in \mathbb{R}$, want to take derivative of $f$: complex analytic
+
+   expand out a taylor series in complex numbers:
+
+   $f(x + ih) = f(x) + f'(x)ih + O(h^2)$
+
+   rearrange, divide h out:
+
+   $$if'(x) = \frac{f(x+ih) - f(x)}{h} + O(h)$$
+
+   okay, $i f'$ is purely imaginary: $x \in \mathbb{R}$
+
+   take $Im$ of both sides:
+
+   $$if'(x) = \frac{Im(f(x+ih) - f(x))}{h} + O(h^2) = \frac{Im(f(x+ih))}{h} + O(h^2)$$
+
+   basically, this makes the big and small numbers never interact!
+
+   why does this work? we take a step in a direction that's orthogonal to the real numbers.
+
+   okay, can we do this in higher dimensions?
+
+** derivatives as nilpotent sensitivities
+   this can be made rigorous with nonstandard analysis, there's a good book about it
+
+   $f(a + \epsilon) = f(a) + f'(a)\epsilon + o(\epsilon)$
+
+   formally set $\epsilon^2 = 0$
+   ... you can do this if you don't take contradiction (????????)
+
+   represent a function and it's derivative: $f(a + \epsilon) = f(a) + \epsilon f'(a)$
+
+   now, because we're basing this on nonstandard analysis, just treat $\epsilon$ as a dimensional signifier
+
+   (*jhg*: basically a different way of approaching the other AD lecture, using nonstandard analysis instead of dropping higher-order terms of a taylor expansion)
+
+   can define operations on dual numbers; can then find derivatives via algebra, discarding $\epsilon^2$ terms
+
+   break things down to *primitives*; can just use $+$ and $-$ and compute approximations to $\sin$ via actual taylor-expansion implementation,
+   or shortcut and define it as $\cos$ or whatever
+
+   basically: you're using the compiler to raise (/ lower?) your functions to dual numbers
+
+   (*jhg*: wait, how do you take derivatives of functions in julia again?)
+
+** directional derivative and gradient of functions
+   For a function $f: \R^n \to \R$, the basic operation is the *directional derivative*
+
+   $$\lim_{\epsilon \to 0} \frac{(f(\mathbf{x} + \epsilon \mathbf{v}) - f(\mathbf{x})}{\epsilon} = [\nabla f(\mathbf{x})] \cdot \mathbf{v}$$
+
+   where $\eps$ is still a single dimension and $\vv$ is the direction we wish to calculate.
+
+   We can directly do this using the same simple Dual numbers as above, using the same $\epsilon$ for both dimensions, e.g.
+
+   $$f(x, y) = x^2  \sin(y)$$
+
+   \begin{align*}
+   f(x_0 + a\epsilon, y_0 + b\epsilon) &= (x_0 + a\epsilon)^2  \sin(y_0 + b\epsilon) \\
+   &= x_0^2  \sin(y_0) + \epsilon[2ax_0  \sin(y_0) + x_0^2 b \cos(y_0)] + o(\epsilon)
+   \end{align*}
+
+   ...So we have indeed calculated $\nabla f(x_0, y_0) \cdot \mathbf{v}$ where
+   $\mathbf{v} = (a, b)$ are the components that we put into the derivative
+   component of the `Dual` numbers.
+
+   To calculate the derivative in a different direction: you could just do this multiple times, but, better way: introduce multiple dimensions,
+   e.g. compute
+
+   $f(x + a_1 \eps_1 + a_2 \eps_2, y + a_1 \eps_1 + a_2 \eps_2)$
+
+   ...then you get derivative in directions $\vv_1$, $\vv_2$.
+
+   In particular, if we wish to calculate the gradient itself, ∇f(x0,y0),
+   we need to calculate both partial derivatives, which corresponds to two directional derivatives,
+   in the directions (1,0) and (0,1), respectively.
+
+** forward-mode AD as jacobian-vector product
+
+   Note that another representation of the directional derivative is $f'(x)v$,
+   where $f'(x)$ is the Jacobian or total of $f$ at $x$. To see the equivalence
+   of this to a directional derivative, write it out in the standard basis:
+
+   Written out in the standard basis, we have that:
+
+   $$w_i = \sum_{j}^{m} J_{ij} v_{j}$$
+
+   Now write out what $J$ means and we see that:
+
+   $$w_i = \sum_j^{m} \frac{df_i}{dx_j} v_j = \nabla f_i(x) \cdot v$$
+
+   **The primitive action of forward-mode AD is $f'(x)v!**
+
+   This is also known as a *Jacobian-vector product*, or *jvp* for short.
+
+   We can thus represent vector calculus with multidimensional dual numbers as
+   follows. Let $d =[x,y]$, the vector of dual numbers. We can instead represent
+   this as:
+
+   $$d = d_0 + v_1 \epsilon_1 + v_2 \epsilon_2$$
+
+   where $d_0$ is the *primal* vector $[x_0,y_0]$ and the $v_i$ are the vectors
+   for the *dual* directions. If you work out this algebra, then note that a
+   single application of $f$ to a multidimensional dual number calculates:
+
+   $$f(d) = f(d_0) + f'(d_0)v_1 \epsilon_1 + f'(d_0)v_2 \epsilon_2$$
+
+   i.e. it calculates the result of $f(x,y)$ and two separate directional derivatives.
+   Note that because the information about $f(d_0)$ is shared between the calculations,
+   this is more efficient than doing multiple applications of $f$. And of course,
+   this is then generalized to $m$ many directional derivatives at once by:
+
+   $$d = d_0 + v_1 \epsilon_1 + v_2 \epsilon_2 + \ldots + v_m \epsilon_m$$
+
+*** Jacobian
+
+   For a function $f: \mathbb{R}^n \to \mathbb{R}^m$, we reduce (conceptually,
+   although not necessarily in code) to its component functions
+   $f_i: \mathbb{R}^n \to \mathbb{R}$, where $f(x) = (f_1(x), f_2(x), \ldots, f_m(x))$.
+
+   Then
+
+   \begin{align}
+   f(x + \epsilon v) &= (f_1(x + \epsilon v), \ldots, f_m(x + \epsilon v)) \\
+   &= (f_1(x) + \epsilon[\nabla f_1(x) \cdot v], \dots, f_m(x) + \epsilon[\nabla f_m(x) \cdot v] \\
+   &= f(x) + [f'(x) \cdot v] \epsilon,
+   \end{align}
+
+   To calculate the complete Jacobian, we calculate these directional derivatives
+   in the $n$ different directions of the basis vectors, i.e. if
+
+   $d = d_0 + e_1 \epsilon_1 + \ldots + e_n \epsilon_n$
+
+   for $e_i$ the $i$th basis vector, then
+
+   $f(d) = f(d_0) + Je_1 \epsilon_1 + \ldots + Je_n \epsilon_n$
+
+   computes all columns of the Jacobian simultaneously.
+
+** ..other notes
+
+   higher-order derivatives: add more epsilons! can make *hyperduals!* woo!
+   (it's actually really hard to do algebra once you're working with that many terms...)
+
+   that is the most general version of forward-mode AD
+
+   this is a formally correct result, we're not thinking of this just in terms of "dropping higher order terms"
+
+   note: pushing things through to implementations of "primitive functions" can be done because julia has its own libm implementation!
+   not as good as some proprietary ones (.5x performance), but makes things reproducible, even across hardware platforms like GPU
+
+   forward-mode AD at compile time is solved, reverse-mode AD is much harder
+
+** re-digesting sparse differentiation
+   [we can think of this as selecting special $v$'s based on a graph-coloring problem]
+
+* solving stiff ODEs
+  we have previously shown how to solve non-stiff odes via optimized runge-kutta methods, but we ended by showing that there
+  is a fundamental limitation of these methods when attempting to solve stiff ordinary differential equations. however, we can
+  get around these limitations by using different types of methods, like implicit euler. let's now go down the path of understanding
+  how to efficiently implement stiff ordinary differential equation solvers, and its interaction with other domains like automatic differentiation.
+
+  when one is solving a large-scale scientific computing problem with mpi, this is almost always the piece of code where all of
+  the time is spent, so let's understand how what it's doing.
+
+** implicit euler method
+   $$u_{n+1} = u_n + \Delta t f(u_{n+1}, p, t+\Delta t)$$
+
+   To solve:
+
+   $$0 = u_n + \Delta t f(u_{n+1}, p, t+\Delta t) - u_{n+1} = g(u_{n+1})$$
+
+   we now have a function in $u_{n+1}$ we want to find roots for. classic.
+
+   how we find the roots affects stability; fixed point iteration is not a good choice. instead, use Anderson Acceleration or
+   Newton's Method. we focus on Newton's.
+
+   say we want $g(x)=0$.
+
+   iterate:
+
+   $$x_{k+1} = x_k - J(x_k)^{-1} g(x_k)$$
+
+   but that's not how we actually do it. numerically, this is two stages:
+
+   solve $J(x_k)a=g(x_k)$ for $a$.
+
+   then: $a = J(x_k)^{-1}g(x_k)$
+
+   so we can update: $x_{k+1} = x_k - a$
+
+** quick notes
+   Jacobian of $g$ can be written $J =I - \gamma \frac{df}{du}$ for $u' = f(u, p, t)$ where $\gamma = \Delta t$ for the implicit euler method.
+   this form holds for other SDIRK* implicit methods, changing value of $\gamma$.
+
+   *SDIRK: singly-diagonal implicit Runge-Kutta methods for stiff ODEs. https://juliadiffeq.org/2017/08/13/SDIRK.html
+
+   Also, if solving a mass matrix ODE $Mu' = f(u, p, t)$, same treatment can happen with $J = M - \gamma \frac{df}{du}$.
+
+** dense finite differences / forward-mode AD
+   jacobian is $\frac{df_i}{dx_j}$ for $\fv$ vector-valued.
+
+   the simplest way to generate jacobian is via finite differences. for $h_j = he_j$, basis vector of axis $j$ and sufficiently small $h$,
+   compute column $j$ of the jacobian by:
+
+   $$\frac{f(x+h_j)-f(x)}{h}$$
+
+   thus, need $m+1$ applications of $f$ to compute full jacobian.
+
+   can be improved with dual numbers. formulate multi-dimensional dual number:
+
+   $d = x + \epsilon_1 e_i + \eps_2 e_2 + ... + \eps_m e_m$
+
+   now with one computation of primal $f(d)$ we've got the entire jacobian.
+
+** sparse differentiation and matrix coloring
+   columns with matching 0s in jacobian can be combined. pack multiple basis vectors into a single $\eps$.
+
+   this can be considered "matrix coloring" / graph coloring problem.
+
+** linear solving
+
+   how do we solve $Ja=b$?
+
+   can invert $J$ but that's bad because $J^{-1}$ is in general dense. therefore, $N^2$ terms, where $N$ is terms in difeq; might not fit in memory.
+
+   factorize jacobian, $J=LU$, $LUa=b$
+
+   $L$ is lower triangular, $U$ is upper triangular, want to find $L$ and $U$ to find original jacobian
+
+   lower triangular solve:
+
+     $\alpha a = v_1$
+     $\beta a + \gamma b = v_2$
+     find [a, b]
+
+   ...can add more stuff
+
+   backsubstitution:
+     $O(n^2)$ because it's half a square
+
+   finding $LU$ is just gaussian elimination
+
+   ok, this isn't finding a true inverse but it's still $O(n)$... why do we care?
+
+   in homework, we'll prove that there's a variant of newton's method where you only need to use jacobian of $x_0$ instead of $x_k$.
+
+   a "quasi-newton's method", which we can show will converge.
+
+   can also do "symbolic factorization" to generalize LU factorizations to sparse systems.
+
+** jacobian-free newton krylov
+   what if your factorizations don't fit in memory?
+
+   we don't actually need to compute $J$, all we need is $v=Jw$. Is it possible to compute jacobian-vector product (jvp)
+   without the whole jacobian?
+
+   yes:
+
+   $$w_i=\sum_j^mJ_{ij}v_j = \sum_j^m \frac{df_i}{dx_j}v_j=\nabla f_i(x) \cdot v$$
+
+   that is, the directional derivative in the direction of $v$.
+
+   therefore,
+
+   $$Jv = \lim_{\eps \to 0} \frac{f(x + v\eps) - f(x)}{\eps} \approxident \frac{f(x + v\eps) - f(x)}{\eps}$$
+
+   for non-zero $\eps$ (*jhg*: or exactly, if using nonstandard analysis, i.e. dual numbers.)
+
+   recall that in forward-mode automatic differentiation we can choose directions by seeding the dual part.
+   so we can compute jvp using only a single forward-mode pass, with one partial.
+
+** background: basic iterative solvers
+   one way to solve $Jw = b$:
+
+   use *iterative linear solvers*. we want (you guessed it!) a discrete dynamical system whose solution is $w$.
+
+   so we want iterative process so that:
+
+   $Jw - b = 0$.
+
+   split $J = A - B$, then $Aw_{k+1} = Bw_k + b$.
+
+   so we want $A$ easy to invert and $B$ everything else. then:
+
+   $w_{k+1} = A^{-1}(Bw_k + b)$
+
+
+   now, for fixed point $w^*$:
+
+   $Aw^* = Bw^* + b$
+
+   $Aw^* - Bw^* - b = 0$
+
+   $(A - B)w^* - b = 0$
+
+   $Jw^* - b = 0$
+
+   nice.
+
+   is this stable?
+
+   check eigenvalues of $A^{-1}(Bw_k + b)$.
+   if they're in unit circle, system is stable.
+
+   (*jhg*: that means, check eigenvalues of jacobian of update w.r.t $w_k$.)
+
+   note that you can do this by bringing eigenvalues of $A^-1$ closer to zero, by multiplying $A$ by a large value.
+
+   that always works, but is equivalent to small step size.
+
+** krylov subspace methods for solving linear systems
+   we can compute $Jp$, how do we compute $Jw=v$ quickly?
+
+   Krylov subspace methods.
+
+   $$\cK_k = \mathrm{span}\{v, Jv, J^2v, ..., J^k v\}$$
+
+   nice properties: has dimensionality of subspace has maximum value $m$, dimensionality of jacobian.
+
+   therefore in $m$ jvps the solution is guaranteed to live in the Krylov subspace, giving a maximal computational cost and a proof of convergence if the vector in there is the "optimal in the space".
+
+   most common: GMRES method.
+   in step $i$, compute $\cK_i$, and find $x$ that is closest to subspace, i.e. $\min_{x \in \cK_i} ||Jx-v||$.
+   at each step, it adds the new vector to the Krylov subspace after orthogonalizing it against the other vectors via Arnoldi iterations, leading to an orthogonal basis of $\cK_i$ which makes it easy to express $x$.
+
+   have a guaranteed bound on jvps: the number of ODEs. that's not a good bound though; in high dimensional sparse problems, you don't want to compute
+   100,000 jvps. so stop when $||Jx-v||$ is below some user-defined tolerance instead of running to completion.
+
+** intermediate conclusion
+   Let's take a step back and see what our intermediate conclusion is. In order to solve for the implicit step, it just boils down to doing Newton's method on some $g(x)=0$. If the Jacobian is small enough, one factorizes the Jacobian and uses Quasi-Newton iterations in order to utilize the stored LU-decomposition in multiple steps to reduce the computation cost. If the Jacobian is sparse, sparse automatic differentiation through matrix coloring is employed to directly fill the sparse matrix with less applications of $g$, and then this sparse matrix is factorized using a sparse LU factorization.
+
+   When the matrix is too large, then one resorts to using a Krylov subspace method, since this only requires being able to do $Jv$ calculations. In general, $Jv$ can be done matrix-free because it is simply the directional derivative in the direction of the vector $v$, which can be computed thorugh either numerical or forward-mode automatic differentiation. This is then used in the GMRES iterative process to find the solution in the Krylov subspace which is closest to the solution, exiting early when the residual error is small enough. If this is converging too slow, then preconditioning is used.
+
+   That's the basic algorithm, but what are the other important details for getting this right?
+** preconditioning
+   however, the speed at GMRES convergences is dependent on the correlations between the vectors, which can be shown to be related to the condition number of the Jacobian matrix. a high condition number makes convergence slower (this is the case for the traditional iterative methods as well), which in turn is an issue because it is the high condition number on the Jacobian which leads to stiffness and causes one to have to use an implicit integrator in the first place!
+
+   preconditioning is the process of using a semi-inverse to the matrix in order to split the matrix so that the iterative problem that is being solved is one that is has a smaller condition number.
+
+   mathematically, it involves decomposing $J=P_lAP_r$ where $P_l$ and $P_r$ are the left and right preconditioners which have simple inverses, and thus instead of solving $Jx=v$, we would solve:
+
+   $$P_lAP_rx=v$$
+
+   or
+
+   $$AP_rx=P_l^{−1}v$$
+
+** jacobian re-use
+   can re-use jacobian between steps until it diverges, then re-compute
+
+** adaptive timestepping
+   sometimes newton's method isn't stable enough! then you need to vary time steps as well.
+
+   this needs to be combined with jacobian re-use, since jacobian depends on time step.
+
+   to be adaptive, usually use *rejection sampling*: get some estimate of error in a step.
+   this is done with *embedded method*, which is cheap approximation; use that to get error bound. when it gets too big, reduce $\Delta t$, possibly
+   re-factorize, etc.
+
+   many schemes for changing $\Delta t$. most common: P-control; can also use PI control or PID control, or other things from control theory.
+
+** methodological summary
+   Here's a quick summary of the methodologies in a hierarchical sense:
+
+    At the lowest level is the linear solve, either done by JFNK or (sparse) factorization. For large enough systems, this is brunt of the work. This is thus the piece to computationally optimize as much as possible, and parallelize. For sparse factorizations, this can be done with a distributed sparse library implementation. For JFNK, the efficiency is simply due to the efficiency of your ODE function f.
+
+    An optional level for JFNK is the preconditioning level, where preconditioners can be used to decrease the total number of iterations required for Krylov subspace methods like GMRES to converge, and thus reduce the total number of f calls.
+
+    At the nonlinear solver level, different Newton-like techniques are utilized to minimize the number of factorizations/linear solves required, and maximize the stability of the Newton method.
+
+    At the ODE solver level, more efficient integrators and adaptive methods for stiff ODEs are used to reduce the cost by affecting the linear solves. Most of these calculations are dominated by the linear solve portion when it's in the regime of large stiff systems. Jacobian reuse techniques, partial factorizations, and IMEX methods come into play as ways to reduce the cost per factorization and reduce the total number of factorizations.

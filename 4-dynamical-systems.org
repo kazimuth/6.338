@@ -29,148 +29,149 @@ https://mitmath.github.io/18337/lecture4/dynamical_systems
 
 
 * why?
-dynamical systems show up everywhere
+  dynamical systems show up everywhere
 
 * properties of linear systems
-scalar system:
+  scalar system:
 
-$$u_n+1=\alpha u_n$$
+  $$u_n+1=\alpha u_n$$
 
-what is the global behavior?
+  what is the global behavior?
 
-if we know $\alpha + u_0$, then:
-$u_{n+1} = \alpha^n u_0$
+  if we know $\alpha + u_0$, then:
+  $u_{n+1} = \alpha^n u_0$
 
-if $||\alpha|| > 0$, expands;
-if $||\alpha|| < 0$, goes down;
-if $\alpha$ imaginary, spirals (in high-dimensional space)
+  if $||\alpha|| > 0$, expands;
+  if $||\alpha|| < 0$, goes down;
+  if $\alpha$ imaginary, spirals (in high-dimensional space)
 
 * nonlinear geometric dynamics
-  The Geometric Theory of Dynamical Systems is the investigation of their long-term properties and the geometry of the phase space which they occupy. Let's start looking at this in practical terms: how do nonlinear update equations act as time goes to infinity?
+  The Geometric Theory of Dynamical Systems is the investigation of their long-term properties and the geometry of the phase space which they occupy.
+  Let's start looking at this in practical terms: how do nonlinear update equations act as time goes to infinity?
 ** banach fixed point theorem
 
-let $(X, d)$: metric space
-that is, $d : X \to \mathbb{R}$ has three properties:
-1. $d(x,y) \ge 0$, $d(x,x) = 0$
-2. $d(x,y) = d(y,x)$
-3. $d(x,z) \leq d(x,y) + d(y,z)$
+   let $(X, d)$: metric space
+   that is, $d : X \to \mathbb{R}$ has three properties:
+   1. $d(x,y) \ge 0$, $d(x,x) = 0$
+   2. $d(x,y) = d(y,x)$
+   3. $d(x,z) \leq d(x,y) + d(y,z)$
 
-(in this case: $X$ is $\mathbb{R}$)
+   (in this case: $X$ is $\mathbb{R}$)
 
-$f$ is a contraction mapping if:
-$d(f(x), f(y)) \leq \alpha d(x,y)$ for $\alpha \le 1$
-i.e. it always shrinks distances.
+   $f$ is a contraction mapping if:
+   $d(f(x), f(y)) \leq \alpha d(x,y)$ for $\alpha \le 1$
+   i.e. it always shrinks distances.
 
-if $f$ is a contraction map, then there exists a *unique* fixed point $f(x^*) = x^*$
-and a sequence $x_0 \to x^*$.
+   if $f$ is a contraction map, then there exists a *unique* fixed point $f(x^*) = x^*$
+   and a sequence $x_0 \to x^*$.
 
-how do we prove this? we only have metric space properties. third one seems interesting; we can use it to bound distances.
+   how do we prove this? we only have metric space properties. third one seems interesting; we can use it to bound distances.
 
-have map: $x_{n+1} = f(x_n)$
+   have map: $x_{n+1} = f(x_n)$
 
-so $d(x_m, x_n) \leq d(x_m, x_{m-1}) + \ellipsis + d(x_{n+1}, x_n)$ for $n \le m \in \mathbb{Z}$
+   so $d(x_m, x_n) \leq d(x_m, x_{m-1}) + \ellipsis + d(x_{n+1}, x_n)$ for $n \le m \in \mathbb{Z}$
 
-note:
-$d(x_{n+1}, x_n) = d(f(x_n), x_n) = d(f(x_n), f(x_{n-1}))$
+   note:
+   $d(x_{n+1}, x_n) = d(f(x_n), x_n) = d(f(x_n), f(x_{n-1}))$
 
-... lecturer got lost, look up in notes
+   ... lecturer got lost, look up in notes
 
-but, intuition: distance between future points is always shrinking by at least a factor of $\alpha$ (by contraction mapping)
+   but, intuition: distance between future points is always shrinking by at least a factor of $\alpha$ (by contraction mapping)
 
-proof via geometric sequence + cauchy convergence
+   proof via geometric sequence + cauchy convergence
 
-(*if* you have a complete metric space! incomplete metric space, like rationals, may have convergence point outside space.)
+   (*if* you have a complete metric space! incomplete metric space, like rationals, may have convergence point outside space.)
 
 ** stability of linear discrete dynamical systems
-let $f \in C^1$, or rather, $f$ is sufficiently nice and we can always take derivatives
+   let $f \in C^1$, or rather, $f$ is sufficiently nice and we can always take derivatives
 
-$x_{n+1} = f(x_n)$
+   $x_{n+1} = f(x_n)$
 
-assume that $\abs{f'(x^*)} < 1$ for some $f(x^*) = x^*$, that is, we have a fixed point and the norm of the derivative $\le 1$
+   assume that $\abs{f'(x^*)} < 1$ for some $f(x^*) = x^*$, that is, we have a fixed point and the norm of the derivative $\le 1$
 
-if this wasn't a math class, we could discretize... but this is a math class
+   if this wasn't a math class, we could discretize... but this is a math class
 
-if f is continuous, there must be a *neighborhood* where $||f' < 1||$
+   if f is continuous, there must be a *neighborhood* where $||f' < 1||$
 
-now note:
+   now note:
 
-$$\abs{f(y) - f(x)} = \abs{\int_x^y f'(z) dz} < \abs{\int_x^y 1 dz} = \abs{y-x} $$
+   $$\abs{f(y) - f(x)} = \abs{\int_x^y f'(z) dz} < \abs{\int_x^y 1 dz} = \abs{y-x} $$
 
-which is to say, $f$ is lipschitz, where we can use derivative as the lipschitz bound.
+   which is to say, $f$ is lipschitz, where we can use derivative as the lipschitz bound.
 
-but therefore, in this neighborhood, this function is *locally* a contraction map!
+   but therefore, in this neighborhood, this function is *locally* a contraction map!
 
-by banach fixed point theorem, there must be a unique point that sequences converge to.
+   by banach fixed point theorem, there must be a unique point that sequences converge to.
 
-this is *stability*
+   this is *stability*
 
-stability of a fixed point: if nearby, then you go to the fixed point!
+   stability of a fixed point: if nearby, then you go to the fixed point!
 
-multidimensional version:
+   multidimensional version:
 
-take $\fv \in C^1$, assume $$\norm{\frac{d\fv}{d\xv}(\xv^*)} \leq 1$$ for some $\fv(\xv^*) = \xv^*$; equivalently, for all eigenvalues $\lambda_i$ of jacobian $\frac{d\fv}{d\xv}(\xv^*)$, $\abs{\lambda_i} \leq 1$
+   take $\fv \in C^1$, assume $$\norm{\frac{d\fv}{d\xv}(\xv^*)} \leq 1$$ for some $\fv(\xv^*) = \xv^*$; equivalently, for all eigenvalues $\lambda_i$ of jacobian $\frac{d\fv}{d\xv}(\xv^*)$, $\abs{\lambda_i} \leq 1$
 
-$$\norm{\fv(\yv) - \fv(\xv)}=\norm{\int_{\xv}^{\yv} \frac{d\fv}{d\xv}(\zv)\; d\zv}\leq\int_{\xv}^{\yv} \norm{\frac{d\fv}{d\xv}(\zv) \; d\zv} \leq \int_{\xv}^{\yv} \norm{d\zv} = \norm{\xv - \yv}$$
+   $$\norm{\fv(\yv) - \fv(\xv)}=\norm{\int_{\xv}^{\yv} \frac{d\fv}{d\xv}(\zv)\; d\zv}\leq\int_{\xv}^{\yv} \norm{\frac{d\fv}{d\xv}(\zv) \; d\zv} \leq \int_{\xv}^{\yv} \norm{d\zv} = \norm{\xv - \yv}$$
 
-So $$\norm{\fv(\yv) - \fv(\xv)} \leq \norm{\xv - \yv}$$ and we again have a contraction mapping.
+   So $$\norm{\fv(\yv) - \fv(\xv)} \leq \norm{\xv - \yv}$$ and we again have a contraction mapping.
 
 ** summary
-if you have a map $x_{n+1} = f(x_n)$ and you find a value $x^* = f(x^*)$ and $||f'(x^x) < 1||$,
-then for all points "near" $x^n$, $x_n \to x^*$ (can make this more rigorous)
+   if you have a map $x_{n+1} = f(x_n)$ and you find a value $x^* = f(x^*)$ and $||f'(x^x) < 1||$,
+   then for all points "near" $x^n$, $x_n \to x^*$ (can make this more rigorous)
 
-if $x_{n+1} = f(x_n)$, then near a point $x^*$, $x_{n+1} = f'(x^*) x_n$.
+   if $x_{n+1} = f(x_n)$, then near a point $x^*$, $x_{n+1} = f'(x^*) x_n$.
 
-that is, near a fixed point, system will behave as a linear system with the derivative of the fixed point.
+   that is, near a fixed point, system will behave as a linear system with the derivative of the fixed point.
 
-example: if $x_{n+1} = x_n + f(x_n)$, redefine $x_{n+1} = g(x_n)$.
+   example: if $x_{n+1} = x_n + f(x_n)$, redefine $x_{n+1} = g(x_n)$.
 
 ** what about multiple variables?
-$\pmb{x}$ is a vector; $A$ is a matrix of scalars. Then: $\pmb{x}_{n+1} = A\pmb{x}$
+   $\pmb{x}$ is a vector; $A$ is a matrix of scalars. Then: $\pmb{x}_{n+1} = A\pmb{x}$
 
-what's the analytical solution?
+   what's the analytical solution?
 
-if $A$ is diagonal, solution is just individual solutions for each diagonal element.
+   if $A$ is diagonal, solution is just individual solutions for each diagonal element.
 
-if $A$ is diagonalizable, i.e. $A = P^{-1}DP$, $D$ has eigenvalues $\lambda_1 ...  \lambda_n$ on diagonal, $P$ is eigenvectors $[v_1^T ... v_n^T]$
+   if $A$ is diagonalizable, i.e. $A = P^{-1}DP$, $D$ has eigenvalues $\lambda_1 ...  \lambda_n$ on diagonal, $P$ is eigenvectors $[v_1^T ... v_n^T]$
 
-plug in diagonalization: $\pmb{x}_{n+1} = P^{-1}DP\pmb{x}_n = P^{-1}D^nPx_0$
+   plug in diagonalization: $\pmb{x}_{n+1} = P^{-1}DP\pmb{x}_n = P^{-1}D^nPx_0$
 
-so it's just 3 independent variables moving around, warped by some transformation
+   so it's just 3 independent variables moving around, warped by some transformation
 
-do we know if it's going to a fixed point? well, must have all systems going to fixed point, i.e. eigenvalues $||\lambda_i|| < 1$.
+   do we know if it's going to a fixed point? well, must have all systems going to fixed point, i.e. eigenvalues $||\lambda_i|| < 1$.
 
-note: it's not the norm that's less than one! it's that each of the eigenvalues should be in the unit circle.
+   note: it's not the norm that's less than one! it's that each of the eigenvalues should be in the unit circle.
 ** interesting stuff that shows up in multidimensional system
 *** 1d-delayed systems
-$x_{n+1} = \alpha_0 x_n + ... + \alpha_m x_{n-m}$
+    $x_{n+1} = \alpha_0 x_n + ... + \alpha_m x_{n-m}$
 
-write as $[x^1_{n+1} ... x^{m+1}_{+1]^T$
-can convert to a matrix: $\alpha$ s across top row, 1s down cross diagonal: $x^i_{n+1} = ... = x^{i-1}_n$
+    write as $[x^1_{n+1} ... x^{m+1}_{+1]^T$
+    can convert to a matrix: $\alpha$ s across top row, 1s down cross diagonal: $x^i_{n+1} = ... = x^{i-1}_n$
 
-if there's a perturbation at time 0, ...?
+    if there's a perturbation at time 0, ...?
 
-comes down to whether characteristic polynomial of time system has roots in unit circle in $\mathbb{C}$
+    comes down to whether characteristic polynomial of time system has roots in unit circle in $\mathbb{C}$
 
 *** stochastic systems
-...
+    ...
 
-can use linearity of expectation, look at how system acts in mean
+    can use linearity of expectation, look at how system acts in mean
 
-*jhgilles*: what if system escapes area around fixed point?
+    *jhgilles*: what if system escapes area around fixed point?
 
 *** nonlinear systems
-...
+    ...
 
 *** other systems
 
-*jhgilles*: parseval networks are sorta like this; if you think of each layer as a function,
-lipschitz means vector doesn't escape no matter how many layers you have
+    *jhgilles*: parseval networks are sorta like this; if you think of each layer as a function,
+    lipschitz means vector doesn't escape no matter how many layers you have
 
-don't necessarily converge to a point though?
+    don't necessarily converge to a point though?
 
 ** other stuff with loops
-*periodic* behavior $u_{n+1} = -u_n$
-that has period 1; can extend period, when you get to infinity period that's chaos
+   *periodic* behavior $u_{n+1} = -u_n$
+   that has period 1; can extend period, when you get to infinity period that's chaos
 
 * efficiently implementing loops on a computer
 

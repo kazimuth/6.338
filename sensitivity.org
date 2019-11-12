@@ -1,0 +1,6 @@
+#+TITLE: notes on sensitivity / hw2
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 10 november 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview

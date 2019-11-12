@@ -1,4 +1,4 @@
-% Created 2019-10-15 Tue 20:08
+% Created 2019-10-16 Wed 04:53
 % Intended LaTeX compiler: pdflatex
 \documentclass[nobib]{tufte-handout}
 
@@ -96,9 +96,9 @@
 
 
 \section{Problem 1}
-\label{sec:orge905df4}
+\label{sec:orgc11fc44}
 \subsection{Part 1}
-\label{sec:orge639ccd}
+\label{sec:orgca8ca0b}
 We want to show that if \(\xv^*\) is a fixed point of newton's method, then \(\gv(\xv^*) = \mathbf{0}\).
 We have:
 
@@ -113,7 +113,7 @@ $$\left(\J_{\gv}(\xv^*)\right)^{-1} \gv(\xv^*) = \mathbf{0}$$
 \marginnote[-1.5in]{Geometrically, we're drawing a line up to \(\gv(\xv^*)\), drawing a tangent line along \(\gv'(\xv^*)\), and moving to the x-intersect of that line. It's only possible for the x-intersect of that line to be \(\xv^*\) if \(\gv(\xv^*)\) is already \(\mathbf{0}\). This analogy also works in higher dimensions, although it's harder to visualize.}
 
 \subsection{Part 2}
-\label{sec:orgda287f4}
+\label{sec:org4315634}
 
 The quasi-newton approximation is of the form:
 
@@ -153,14 +153,31 @@ $$I - P^{-1}DP$$
 
 Now note:
 
-\(I - P^{-1}DP = P^{-1}IP - P^{-1}DP = P^{-1}(I - D)P\)
+$$I - P^{-1}DP = P^{-1}IP - P^{-1}DP = P^{-1}(I - D)P$$
 
-\ldots{} TODO
+So the eigenvalues of $$\J_{\hxo}(\xv)$$ are equal to 1 minus the eigenvalues of \(\left(\left(\J_{\gv}(\xv_0)\right)^{-1}\gv(\xv)\right)'\).
 
+Therefore, for the sequence to converge, \(\left(\left(\J_{\gv}(\xv_0)\right)^{-1}\gv(\xv)\right)'\) should have eigenvalues in the range \((0,2)\),
+and \(\xv_0\) should be near \(\xv^*\). If these properties hold, then the sequence will converge to \(\xv^*\).
+
+\subsection{Part 3}
+\label{sec:org3a5bc6b}
+The proof is the same as before, but \(\alpha\) can be tuned to put the eigenvalues of \(\alpha\left(\left(\J_{\gv}(\xv_0)\right)^{-1}\gv(\xv)\right)'\) in
+the range \((0, 2)\) as long as those eigenvalues are positive.
+
+\subsection{Part 4.}
+\label{sec:org76690ae}
+\begin{enumerate}
+\item Define \(\hv(\xv) = \xv^* - \gv(\xv^* - \xv)\). Then \(\hv(\mathbf{0}) = \mathbf{0}\).
+
+\item Change \(\xv_0\) to \(\xv^*\); then you're approximating the fixed-point iteration. Basically, quasi-newton will converge worse if there are larger eigenvalues at \(\xv_0\).
+\end{enumerate}
+
+\newpage
 \section{Problem 2}
-\label{sec:org4379195}
+\label{sec:org043a819}
 \subsection{Part 1}
-\label{sec:orgcf77b14}
+\label{sec:org4bcbce0}
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
    using Plots, ForwardDiff, StaticArrays, Distributions, Test
    pyplot()
@@ -186,11 +203,8 @@ Now note:
    @test newton_quantile(x -> x, .9, .5) == .9
 \end{minted}
 
-\begin{verbatim}
-Test Passed
-\end{verbatim}
 \subsection{Part 2}
-\label{sec:orge97a125}
+\label{sec:org1b6fadf}
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
    function my_quantile(d, y; x0 = mean(d), maxsteps=10000)
        newton_quantile(x -> cdf(d, x), y, x0, maxsteps=maxsteps,
@@ -205,13 +219,11 @@ Test Passed
    end
 \end{minted}
 
-\begin{verbatim}
-Test Passed
-\end{verbatim}
+\newpage
 \section{Problem 3}
-\label{sec:org46dd8d6}
+\label{sec:org9de8a01}
 \subsection{Part 1}
-\label{sec:org11ce445}
+\label{sec:org100afe3}
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
    function calc_attractor!(out,r;warmup=400,x0=0.25)
        x = x0
@@ -229,12 +241,8 @@ Test Passed
    @test is_close(out[1], (2.9 - 1) / 2.9)
 \end{minted}
 
-\begin{verbatim}
-Test Passed
-\end{verbatim}
-
 \subsection{Part 2}
-\label{sec:org13cb417}
+\label{sec:org51f9e11}
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
    n = 1000
    rs = 2.9:0.001:4
@@ -270,7 +278,7 @@ Test Passed
 \end{figure*}
 
 \subsection{Part 3}
-\label{sec:org066c82b}
+\label{sec:org165a893}
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
    using Base.Threads
    n = 150
@@ -297,8 +305,8 @@ Test Passed
 
 \begin{verbatim}
 threads: 8
-serial:    0.004558 seconds (1.11 k allocations: 2.587 MiB)
-parallel:  0.064028 seconds (203.46 k allocations: 12.640 MiB)
+serial:    0.001584 seconds (1.11 k allocations: 2.587 MiB)
+parallel:  0.084049 seconds (203.27 k allocations: 12.628 MiB, 25.77% gc time)
 \end{verbatim}
 
 
@@ -316,19 +324,79 @@ If we give the threads more work to do, the ratio changes:
 \end{minted}
 
 \begin{verbatim}
-serial:    2.136245 seconds (4.81 k allocations: 2.785 MiB)
-parallel:  0.351257 seconds (5.02 k allocations: 2.817 MiB)
+serial:    2.511244 seconds (4.80 k allocations: 2.785 MiB)
+parallel:  0.550213 seconds (5.02 k allocations: 2.817 MiB)
 \end{verbatim}
 
 
 Now the actual computation loop dominates and the parallel implementation is much faster.
 
 \subsection{Part 4}
-\label{sec:org875c7ae}
-TODO
+\label{sec:orge4a9969}
+\begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
+   using Distributed
+   n = 150
 
+   addprocs(8)
+
+   @everywhere begin
+       function calc_attractor!(out,r;warmup=400,x0=0.25)
+           x = x0
+           for _ in 1:warmup
+               x = r * x * (1 - x)
+           end
+           for i in 1:length(out)
+               out[i] = x
+               x = r * x * (1 - x)
+           end
+       end
+   end
+   function calc_pmap(n, rs; warmup=400)
+       to_iter = collect(enumerate(rs))
+
+       function op(elem)
+           i, r = elem
+           slice = zeros(n)
+           calc_attractor!(slice, r, warmup=warmup)
+           slice
+       end
+       pmap(op, to_iter)
+   end
+
+   function calc_distributed(n, rs; warmup=400)
+       out = zeros(n, length(rs), 2)
+       to_iter = collect(enumerate(rs))
+
+       @sync @distributed for (i, r) in to_iter
+           out[:, i, 1] .= r
+           slice = @view out[:, i, 2]
+           calc_attractor!(slice, r, warmup=warmup)
+       end
+       out
+   end
+
+   print("serial:      ")
+   @time   calc_serial(n, rs)
+   print("pmap:        ")
+   @time calc_pmap(n, rs)
+   print("@distributed:")
+   @time calc_distributed(n, rs)
+   nothing
+\end{minted}
+
+\begin{verbatim}
+serial:        0.179373 seconds (213.12 k allocations: 13.057 MiB, 69.30% gc time)
+pmap:          2.105161 seconds (479.18 k allocations: 26.831 MiB, 3.39% gc time)
+@distributed:  2.479598 seconds (219.67 k allocations: 14.684 MiB)
+\end{verbatim}
+
+\subsection{Part 5}
+\label{sec:orgdad3180}
+Serial is most efficient for small data. Parallel is best when there's a little more work; and eventually you could scale out with distributed, if you really needed to. It's a question of when the parallel speedup overpowers the constant factor.
+
+\newpage
 \section{Extra}
-\label{sec:org1472dca}
+\label{sec:org463b922}
 Some other random stuff I did trying to understand newton's method.
 
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}

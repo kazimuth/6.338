@@ -1,0 +1,355 @@
+#+TITLE: 18.337 homework 2
+#+AUTHOR: James Gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 7 November 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+#+LATEX_CLASS: tufte-handout
+#+LATEX_HEADER: \usepackage{ifluatex, ifxetex}
+#+LATEX_HEADER: %Next block avoids bug, from http://tex.stackexchange.com/a/200725/1913
+#+LATEX_HEADER: \ifx\ifxetex\ifluatex\else
+#+LATEX_HEADER:   \newcommand{\textls}[2][5]{%
+#+LATEX_HEADER:     \begingroup\addfontfeatures{LetterSpace=#1}#2\endgroup
+#+LATEX_HEADER:   }
+#+LATEX_HEADER:   \renewcommand{\allcapsspacing}[1]{\textls[15]{#1}}
+#+LATEX_HEADER:   \renewcommand{\smallcapsspacing}[1]{\textls[10]{#1}}
+#+LATEX_HEADER:   \renewcommand{\allcaps}[1]{\textls[15]{\MakeTextUppercase{#1}}}
+#+LATEX_HEADER:   \renewcommand{\smallcaps}[1]{\smallcapsspacing{\scshape\MakeTextLowercase{#1}}}
+#+LATEX_HEADER:   \renewcommand{\textsc}[1]{\smallcapsspacing{\textsmallcaps{#1}}}
+#+LATEX_HEADER:   % shove everything else in here so we don't mess with emacs latexpreview, which doesn't use lualatex
+#+LATEX_HEADER:   \usepackage{fontspec}
+#+LATEX_HEADER:   \setmainfont{ETBookOT}
+#+LATEX_HEADER:   \setmonofont[Scale=0.8]{Fantasque Sans Mono}
+#+LATEX_HEADER:   \renewcommand{\contentsname}{Contents}
+#+LATEX_HEADER:   \titleformat{\chapter}%
+#+LATEX_HEADER:     [display]% shape
+#+LATEX_HEADER:     {\relax\ifthenelse{\NOT\boolean{@tufte@symmetric}}{\begin{fullwidth}}{}}% format applied to label+text
+#+LATEX_HEADER:     {\huge\thechapter}% label
+#+LATEX_HEADER:     {0pt}% horizontal separation between label and title body
+#+LATEX_HEADER:     {\huge\rmfamily}% before the title body
+#+LATEX_HEADER:     [\ifthenelse{\NOT\boolean{@tufte@symmetric}}{\end{fullwidth}}{}]% after the title body
+#+LATEX_HEADER:   \titleformat{\section}%
+#+LATEX_HEADER:     [hang]% shape
+#+LATEX_HEADER:     {\normalfont\Large}% format applied to label+text
+#+LATEX_HEADER:     {\thesection}% label
+#+LATEX_HEADER:     {1em}% horizontal separation between label and title body
+#+LATEX_HEADER:     {}% before the title body
+#+LATEX_HEADER:     []% after the title body
+#+LATEX_HEADER:   \titleformat{\subsection}%
+#+LATEX_HEADER:     [hang]% shape
+#+LATEX_HEADER:     {\normalfont\large\itshape}% format applied to label+text
+#+LATEX_HEADER:     {\thesubsection}% label
+#+LATEX_HEADER:     {1em}% horizontal separation between label and title body
+#+LATEX_HEADER:     {}% before the title body
+#+LATEX_HEADER:     []% after the title body
+#+LATEX_HEADER:   \renewcommand{\maketitle}{%
+#+LATEX_HEADER:     \begingroup
+#+LATEX_HEADER:       \setlength{\parindent}{0pt}%
+#+LATEX_HEADER:       \setlength{\parskip}{4pt}%
+#+LATEX_HEADER:       \LARGE\scshape\plaintitle\par
+#+LATEX_HEADER:       \Large\itshape\plainauthor\par
+#+LATEX_HEADER:       \Large\itshape\thedate\par
+#+LATEX_HEADER:     \endgroup
+#+LATEX_HEADER:     %\thispagestyle{plain}% suppress the running head
+#+LATEX_HEADER:     %\tuftebreak
+#+LATEX_HEADER:     %\@afterindentfalse\@afterheading% suppress indentation of the next paragraph
+#+LATEX_HEADER:   }
+#+LATEX_HEADER:   \usepackage{graphicx}
+#+LATEX_HEADER: \fi
+
+#+LATEX_HEADER: \newcommand{\xv}[0]{\mathbf{x}}
+#+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
+#+LATEX_HEADER: \newcommand{\zv}[0]{\mathbf{z}}
+#+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
+#+LATEX_HEADER: \newcommand{\J}[0]{\mathbf{J}}
+#+LATEX_HEADER: \newcommand{\gv}[0]{\mathbf{g}}
+#+LATEX_HEADER: \newcommand{\hv}[0]{\mathbf{h}}
+#+LATEX_HEADER: \newcommand{\sv}[0]{\mathbf{s}}
+#+LATEX_HEADER: \newcommand{\uv}[0]{\mathbf{u}}
+#+LATEX_HEADER: \newcommand{\hxo}[0]{\mathbf{h}_0}
+
+#+LATEX_HEADER: \usepackage{mathtools}
+#+LATEX_HEADER:
+#+LATEX_HEADER: \DeclarePairedDelimiter\abs{\lvert}{\rvert}%
+#+LATEX_HEADER: \DeclarePairedDelimiter\norm{\lVert}{\rVert}%
+#+LATEX_HEADER:
+#+LATEX_HEADER: % Swap the definition of \abs* and \norm*, so that \abs
+#+LATEX_HEADER: % and \norm resizes the size of the brackets, and the
+#+LATEX_HEADER: % starred version does not.
+#+LATEX_HEADER: \makeatletter
+#+LATEX_HEADER: \let\oldabs\abs
+#+LATEX_HEADER: \def\abs{\@ifstar{\oldabs}{\oldabs*}}
+#+LATEX_HEADER: %
+#+LATEX_HEADER: \let\oldnorm\norm
+#+LATEX_HEADER: \def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
+#+LATEX_HEADER: \makeatother
+
+#+LATEX_HEADER: \newcommand*{\approxident}{%
+#+LATEX_HEADER: \mathrel{\vcenter{\offinterlineskip
+#+LATEX_HEADER: \hbox{$\sim$}\vskip-.35ex\hbox{$\sim$}\vskip}}}
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+using StaticArrays
+using LinearAlgebra
+using Plots
+#using DifferentialEquations
+#using ForwardDiff
+#using Zygote
+#using SymPy
+#+END_SRC
+
+#+RESULTS:
+
+* problem 1: parameter estimation
+** part 1: dormand-prince / lotka-volterra
+We can define the lotka-volterra equation:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+function lotka_volterra(_t, v; p = [1.5, 1.0, 3.0, 1.0])
+    x = v[1]
+    y = v[2]
+
+    α = p[1]
+    β = p[2]
+    γ = p[3]
+    δ = p[4]
+
+    dx = α*x - β*x*y
+    dy = - γ*y + δ*x*y
+    @SVector [dx, dy]
+end
+
+start = @SVector [1.0, 1.0]
+lotka_volterra(0.0, start)
+#+END_SRC
+
+#+RESULTS:
+: 2-element SArray{Tuple{2},Float64,1,2} with indices SOneTo(2):
+:   0.5
+:  -2.0
+
+The general form of Runge-Kutta methods is:
+
+$$y_{n+1} = y_n + \Delta t \sum_{i=1}^s b_i k_i$$
+
+where
+
+\begin{align*}
+ k_1 & = f(t_n, y_n), \\
+ k_2 & = f(t_n+c_2\Delta t, y_n+\Delta t(a_{21}k_1)), \\
+ k_3 & = f(t_n+c_3\Delta t, y_n+\Delta t(a_{31}k_1+a_{32}k_2)), \\
+     & \ \ \vdots \\
+ k_s & = f(t_n+c_s\Delta t, y_n+\Delta t(a_{s1}k_1+a_{s2}k_2+\cdots+a_{s,s-1}k_{s-1})).
+\end{align*}
+
+Note: don't confuse this $\yv$ with the $y$ in lotka-volterra, $\yv$ encompasses both $y$ and $x$.
+
+We can define a julia macro which, given a Butcher tableau, creates a function defining the corresponding runge-kutta method:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+function runge_kutta_step_template(a, b, c, name; evals=size(a)[1])
+    n = size(a)[1]
+    @assert size(a)[2] == n
+    @assert size(b)[1] == n
+    @assert size(c)[1] == n
+    @assert c[1] == 0
+    @assert all(diag(a) .== 0)
+    @assert all(abs.(sum(a; dims=2) - c) .< .000001)
+
+    ks = [Symbol("k$i") for i in 1:n]
+
+    lines = []
+    for i in 1:evals
+        if i == 1
+            t = :(t)
+            y = :(y)
+        else
+            t = :(t + $(c[i]) * dt)
+            y_shifts = [:($(a[i,j]) * $(ks[j])) for j in 1:(i-1)]
+            y = :(y + dt * (+($(y_shifts...))))
+        end
+        line = :($(ks[i]) = f($t, $y))
+
+        push!(lines, line)
+    end
+    body = Expr(:block, lines...)
+    result_terms = [:($(b[i]) * $(ks[i])) for i in 1:evals]
+    name = Symbol(name)
+    :(function $name(f, t, y; dt=0.25)
+            $body
+            y + dt * (+($(result_terms...)))
+      end)
+end
+#+END_SRC
+
+#+RESULTS:
+: runge_kutta_step_template (generic function with 1 method)
+
+(Note: this isn't actually a ~macro~ because it's annoying to pass
+matrices into those.)
+
+We can try applying this to the euler method:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+euler_step_template = runge_kutta_step_template(zeros(1,1), [1.0], [0.0], "euler_step")
+println("template: \n", euler_step_template)
+eval(euler_step_template)
+println("evaluate: \n", euler_step((t, v) -> 1.0, 1.0, 1.0; dt=0.25))
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+template:
+function euler_step(f, t, y; dt=0.25)
+    #= In[7]:30 =#
+    begin
+        k1 = f(t, y)
+    end
+    #= In[7]:31 =#
+    y + dt * +(1.0k1)
+end
+evaluate:
+1.25
+#+end_example
+
+Looks good.
+
+Now, let's try the full Dormand-Prince tableau.
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+a = [0 0 0 0 0 0 0;
+     (1/5.) (0) (0) (0) (0) (0) (0);
+     (3/40.) (9/40.) (0) (0) (0) (0) (0);
+     (44/45.) (-56/15.) (32/9.) (0) (0) (0) (0);
+     (19372/6561.0) (-25360/2187.) (64448/6561.0) (-212/729.0) (0) (0) (0);
+     (9017/3168.0) (-355/33.0) (46732/5247.0) (49/176.0) (-5103/18656.) (0) (0);
+     (35/384.0) (0) (500/1113.0) (125/192.) (-2187/6784.) (11/84.) (0)]
+
+b = [35/384,   0,   500/1113,   125/192,   (-2187/6784),   11/84,   0]
+c = [0., 1/5., 3/10., 4/5., 8/9., 1., 1.]
+dormand_prince_step_template = runge_kutta_step_template(a, b, c, "dormand_prince_step", evals=6)
+println("template:\n", dormand_prince_step_template)
+eval(dormand_prince_step_template)
+println("evaluate:\n", dormand_prince_step((t, v) -> 1.0, 1.0, 1.0; dt=0.25))
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+template:
+function dormand_prince_step(f, t, y; dt=0.25)
+    #= In[7]:30 =#
+    begin
+        k1 = f(t, y)
+        k2 = f(t + 0.2dt, y + dt * +(0.2k1))
+        k3 = f(t + 0.3dt, y + dt * (0.075k1 + 0.225k2))
+        k4 = f(t + 0.8dt, y + dt * (0.9777777777777777k1 + -3.7333333333333334k2 + 3.5555555555555554k3))
+        k5 = f(t + 0.8888888888888888dt, y + dt * (2.9525986892242035k1 + -11.595793324188385k2 + 9.822892851699436k3 + -0.2908093278463649k4))
+        k6 = f(t + 1.0dt, y + dt * (2.8462752525252526k1 + -10.757575757575758k2 + 8.906422717743473k3 + 0.2784090909090909k4 + -0.2735313036020583k5))
+    end
+    #= In[7]:31 =#
+    y + dt * (0.09114583333333333k1 + 0.0k2 + 0.44923629829290207k3 + 0.6510416666666666k4 + -0.322376179245283k5 + 0.13095238095238096k6)
+end
+evaluate:
+1.25
+#+end_example
+
+Very nice.
+
+Now we can solve lotka-volterra:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+function solve(f, v0 :: T; dt=0.25, tmin=0.0, tmax=10.0, step=dormand_prince_step) where {T}
+    outputs = T[]
+    v = v0
+    domain = tmin:dt:tmax
+    for t in domain
+        push!(outputs, v)
+        v = step(f, t, v, dt=dt)
+    end
+    (domain, outputs)
+end
+#+END_SRC
+
+#+RESULTS:
+: solve (generic function with 1 method)
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+ts, vs = solve(lotka_volterra, start, dt=0.25, tmin=0.0, tmax=10.0)
+vs = hcat([Array(v) for v in vs]...)
+#+END_SRC
+
+#+RESULTS:
+: 2×41 Array{Float64,2}:
+:  1.0  1.19379   1.53126   2.04162   2.7729   …  1.06128  0.939485  1.01465
+:  1.0  0.619618  0.410147  0.301593  0.25871     2.52549  1.52361   0.915894
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+plot(ts, vs', format=:png, dpi=200)
+#+END_SRC
+
+#+RESULTS:
+[[file:./.ob-jupyter/87d2434b7dea3d055c255962f865efbcaf0ef599.png]]
+
+
+And, for comparison, a plot of the Euler solution with a much smaller step
+size:
+#+BEGIN_SRC julia :session jl :async yes :exports both
+ts_, vs_ = solve(lotka_volterra, start, dt=0.01, tmin=0.0, tmax=10.0, step=euler_step)
+vs_ = hcat([Array(v) for v in vs_]...)
+plot(ts_, vs_', format=:png, dpi=200)
+#+END_SRC
+
+#+RESULTS:
+[[file:./.ob-jupyter/ad38c6f18c01826cf2bf546e9a90ef6747bddddb.png]]
+
+Pretty close!
+
+** part 2: forward sensitivity
+
+   We want to compute $\frac{\partial u}{\partial p}|_t$, the sensitivity of the solution to the parameters at some time $t$.
+
+   We have:
+
+   $$\frac{d}{dt}\frac{\partial u}{\partial p}=\frac{\partial f}{\partial u}\frac{\partial u}{\partial p}+\frac{\partial f}{\partial p_{j}}$$
+
+   Which is just a differential equation in $\frac{\partial u}{\partial p}$. Denote this term $\sv$; we can now integrate this value along with
+   $\uv$ in our solver.
+
+   $
+
+
+
+where
+
+$$J=\left(\begin{array}{cccc}
+\frac{\partial f_{1}}{\partial u_{1}} & \frac{\partial f_{1}}{\partial u_{2}} & \cdots & \frac{\partial f_{1}}{\partial u_{k}}\\
+\frac{\partial f_{2}}{\partial u_{1}} & \frac{\partial f_{2}}{\partial u_{2}} & \cdots & \frac{\partial f_{2}}{\partial u_{k}}\\
+\cdots & \cdots & \cdots & \cdots\\
+\frac{\partial f_{k}}{\partial u_{1}} & \frac{\partial f_{k}}{\partial u_{2}} & \cdots & \frac{\partial f_{k}}{\partial u_{k}}
+\end{array}\right)$$
+
+is the Jacobian of the system,
+
+$$F_{j}=\left(\begin{array}{c}
+\frac{\partial f_{1}}{\partial p_{j}}\\
+\frac{\partial f_{2}}{\partial p_{j}}\\
+\vdots\\
+\frac{\partial f_{k}}{\partial p_{j}}
+\end{array}\right)$$
+
+are the parameter derivatives, and
+
+$$S_{j}=\left(\begin{array}{c}
+\frac{\partial y_{1}}{\partial p_{j}}\\
+\frac{\partial y_{2}}{\partial p_{j}}\\
+\vdots\\
+\frac{\partial y_{k}}{\partial p_{j}}
+\end{array}\right)$$
+
+is the vector of sensitivities. Since this ODE is dependent on the values of the
+independent variables themselves, this ODE is computed simultaneously with the
+actual ODE system.
+
+
+** part 3: parameter estimation

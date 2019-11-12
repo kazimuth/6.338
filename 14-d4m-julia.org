@@ -1,0 +1,137 @@
+#+TITLE: D4M julia demo
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 06 november 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+#+LATEX_HEADER: \usepackage{amssymb}
+
+D4M: treat unstructured data as triples in sparse matrices
+
+notebook: https://github.com/Accla/D4M.jl/blob/master/examples/0JupyterDemo/DemoExamplesJulia.ipynb
+
+* why?
+  in a numerics class, even to walk away with the impression that simulation / mathematical models dominate computing.
+
+  in the broader world, it's far more common to work with real data; less theory, more practice.
+
+  these might seem different; but, from the perspective of someone who runs a supercomputer: these are subproblems of the same larger problem
+
+  they developed the theory of associative arrays; rediscovered the "ancient observation" that most humans can easily understand data
+  in a tabular format. ("this has been happening for thousands of years.") See: 13th-century manuscripts; sumerian tablets.
+
+  why? it's because of our eyes. Our eyes have specialized detectors for horizontal and vertical lines.
+
+  to the rest of the world, this is called a spreadsheet. generally the first thing people code for a new computer is a spreadsheet app.
+
+  maybe a million people use programming languages; a hundred million use spreadsheets every day.
+
+  more people will use spreadsheets in the next hour than will ever use any other data analysis technology.
+
+  so we can model all the data in the world as a spreadsheet.
+  - rest of the world: "duh"
+  - mathematical people: "how boring."
+
+  this observation appears *nowhere* in the mathematical literature.
+
+  real numbers are not the best representation for most data; it's actually equally likely to be textual.
+
+  we always work in two dimensions; physicists and MIT people are comfortable in high dimensions, but regular people are much more comfortable
+  in 2.
+
+* the theory
+
+  A matrix is:
+
+  $A: I\times J \to V$, where $V$: some value
+
+  $i \in I = {1,\,...,\,N}$
+  $j \in J = {1,\,...,\,N}$
+
+  the change: let $i$ be in some set of keys:
+
+  $i \in I = S$ (any sortable elements; "strict totally ordered sets")
+  $j \in J = S$
+  $v \in V = S$
+
+  they need to be sortable for implementation reasons; usually treat strings lexographically. Values too.
+
+  (*jhg*: why not use hash tables?)
+
+  we can add mismatched size
+
+  "In this country you get ONE WEEK of matrix math! And you just compute a determinant by hand, and maybe do a matrix multiplication. But they
+  don't even tell you what the determinant is! Adding up the rows and columns, you get to the same point; the volume of the space."
+
+  ...and if the determinant is 0, that means two of those lines line up, so the volume is 0 in the highest dimensional space.
+
+  (*jhg*: wait, are there determinant equivalents for singular matrices? just pick a lower dimensionality?)
+
+  The nice thing about associative arrays is that you don't have to worry about lining things up. All associative arrays have all possible rows/column;
+  we just treat them as sparse entries in this "gigantic sea" of zeros.
+
+  "And we always know what to do with zero."
+
+  They always say "near-infinite" or "very large" in the book; because actual infinity is a lot harder to work with.
+
+  Imagine if in 10th grade we didn't have to teach you the rules. We don't have to say "this is how you add two spreadsheets"... we just say, "yeah, you can add them.
+
+  When you can *forget* how to do things to make them easier; that's progress.
+
+  Usually the foundation of a field is some basic set of linear models; F=Ma, some set of chemical ratios; *linearity* is really the key thing.
+
+  So how do we keep linearity with strings? DNA sequences? Network IDs?
+
+  If we really want to preserve linearity, we have to go back and figure out what linearity means. Then we ask, "how do we extend that."
+
+  Here's an equation:
+
+  $$2 \times (3+4) = (2\times 3) + (2 \times 4)$$
+
+  That's second / third grade. The distributive property; multiplication distributes over addition.
+
+  Now pretend $\times'$ and $+'$ are some other operations (because I can't find the symbols for circle-times and circle-plus.)
+
+  99% of the time, $\times'=\times$, $+'=+$.
+
+  This property of distribution is called a semiring.
+
+  It's also what makes math "go". (overwrought cow-counting example... you know that's true for literally all other  mathematical truths right??)
+
+  So we can choose other pairs of operations.
+
+  The second most common one:
+
+  $\times'=\max$, $+'=+$
+
+  The max-plus ring; used in graph routing, finance. Also called "tropical algebra."
+
+  (that ring can also be called $+.\times$
+
+  Also have:
+
+  $\times'=\min$, $+'=+$
+
+  $\times'=\max$, $+'=\min$
+
+  $\times'=\min$, $+'=\max$
+
+  $\times' = \cap$, $+'=\cup$, $1=\mathbb{P}$, $0=\varnothing$
+
+  last one might seem weird, but it's used
+
+  conflict: users prefer declarative; implementers prefer procedural
+  see: google. you say, "silly cat pictures". you don't say, "look up the first eigenvector of the string 'silly cat pictures' in the internet."
+
+  SQL's core insight: you can take declarative and *make* it procedural using distributively.
+
+  To keep in mind: you might *think* you're writing a procedural operation; but you're actually writing something declarative. You're making a
+  request from the compiler!
+
+  *jhg*: what's the difference from xarray?
+  answer: ask the question is it closed, and can you do matrix multiplication? If yes, it's an associative array.
+
+  (wait, *is* xarray closed? what happens if you have missing coordinates and aren't explicitly interpolating?)
+
+  question: could the labels be the reals?
+  answer: not entirely sure... but if it's a set with equality (i.e.... a set) then yeah probably
