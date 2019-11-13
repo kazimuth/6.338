@@ -5,3 +5,5 @@
 **/*.out
 **/*.log-*
 **/*.zip
+**/ltximg/*
+**/.ob-jupyter/*

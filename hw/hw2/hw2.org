@@ -95,10 +95,7 @@
 using StaticArrays
 using LinearAlgebra
 using Plots
-#using DifferentialEquations
-#using ForwardDiff
-#using Zygote
-#using SymPy
+using ForwardDiff
 #+END_SRC
 
 #+RESULTS:
@@ -115,7 +112,7 @@ The Lotka-Volterra equations are written:
 We can define a julia function:
 
 #+BEGIN_SRC julia :session jl :async yes :exports both
-function lotka_volterra(_t, u; p = [1.5, 1.0, 3.0, 1.0])
+function lotka_volterra(_t, u; p = @SVector[1.5, 1.0, 3.0, 1.0])
     x = u[1]
     y = u[2]
 
@@ -211,11 +208,11 @@ println("evaluate: \n", euler_step((t, v) -> 1.0, 1.0, 1.0; dt=0.25))
 #+begin_example
 template:
 function euler_step(f, t, u; dt=0.25)
-    #= In[22]:30 =#
+    #= In[3]:30 =#
     begin
         k1 = f(t, u)
     end
-    #= In[22]:31 =#
+    #= In[3]:31 =#
     u + dt * +(1.0k1)
 end
 evaluate:
@@ -268,7 +265,9 @@ Very nice.
 Now we can solve lotka-volterra:
 
 #+BEGIN_SRC julia :session jl :async yes :exports both
-function solve(f, u0 :: T; dt=0.25, tmin=0.0, tmax=10.0, step=dormand_prince_step) where {T}
+function solve(f, u0; dt=0.25, tmin=0.0, tmax=10.0, step=dormand_prince_step)
+    # hack to work w/ ForwardDiff
+    T = typeof(f(tmin, u0))
     outputs = T[]
     u = u0
     domain = tmin:dt:tmax
@@ -353,7 +352,7 @@ Pretty close!
    \end{array}\right)\\
    &=\left(\begin{array}{cc}
      \alpha - \beta y & -\beta x \\
-     -\delta y       & -\gamma y + \delta x \\
+     \delta y       & -\gamma + \delta x \\
    \end{array}\right)\end{align*}$$
 
    and:
@@ -365,7 +364,7 @@ Pretty close!
    \frac{\partial }{\partial \gamma} (-\gamma y + \delta x y) & \frac{\partial }{\partial \delta} (-\gamma y + \delta x y)\\
    \end{array}\right)\\
    &=\left(\begin{array}{cccc}
-   x & x y & 0 & 0 \\
+   x & -x y & 0 & 0 \\
    0 & 0 & -y & xy \\
    \end{array}\right)\end{align*}$$
 
@@ -409,8 +408,8 @@ function lotka_volterra_sens(_t, us, p)
 
     du = @SVector [dx, dy]
 
-    dfdu = @SMatrix [(α - β * y) (-β * x); (-δ * y) (-γ * y + δ * x)]
-    dfdp = @SMatrix [x (x*y) 0 0; 0 0 (-y) (x*y)]
+    dfdu = @SMatrix [(α - β * y) (-β * x); (δ * y) (-γ + δ * x)]
+    dfdp = @SMatrix [x (-x*y) 0 0; 0 0 (-y) (x*y)]
 
     ds = dfdu * s + dfdp
 
@@ -419,7 +418,7 @@ end
 #+END_SRC
 
 #+RESULTS:
-: lotka_volterra_sens (generic function with 2 methods)
+: lotka_volterra_sens (generic function with 1 method)
 
    Now we can solve for $\uv$, along with the sensitivities:
 
@@ -431,62 +430,165 @@ p = @SVector [1.5, 1.0, 3.0, 1.0]
 ts, us = solve((t, u) -> lotka_volterra_sens(t, u, p), start_, dt=0.25, tmin=0.0, tmax=10.0)
 xy = hcat([[u[i] for u in us] for i in 1:2]...)
 
-plot(ts, xy, format=:png, dpi=200, labels=["x", "y"])
-#+END_SRC
-
-#+RESULTS:
-[[file:./.ob-jupyter/b27be8bcde0ff347ce1871cc1ed5426c5cf57422.png]]
-
-#+BEGIN_SRC julia :session jl :async yes :exports both
 u_names = ["x", "y"]
 p_names = ["alpha", "beta", "gamma", "delta"]
 
-ss = hcat([[unwrap_sensitivities(u)[2][i,j] for u in us] for i in 1:2 for j in 1:4]...)
-labels = ["d$(u_names[i])/d$(p_names[j])" for i in 1:2 for j in 1:4]
-plot(ts, sign.(ss) .* log.(abs.(ss)), format=:png, dpi=200, labels=labels)
+ss = hcat([[unwrap_sensitivities(u)[2][i,j] for u in us] for j in 1:4 for i in 1:2]...)
+labels = ["d$(u_names[i])/d$(p_names[j])" for j in 1:4 for i in 1:2]
+plot(ts, ss, format=:png, dpi=200, labels=labels)
 #+END_SRC
 
 #+RESULTS:
-[[file:./.ob-jupyter/fa5f1878f3384cf701caf0c986da200e576efdd8.png]]
+[[file:./.ob-jupyter/8c0de185a3d547b2ebef56a15e6898b563b8487d.png]]
+
+Quite a tangle.
 
 We can compare this to the results found by ~ForwardDiff~:
 
 #+BEGIN_SRC julia :session jl :async yes :exports both
 using ForwardDiff
 
-function solve_p(p)
-    solve((t, u) -> lotka_volterra(t, u, p=p), start, dt=0.25, tmin=0.0, tmax=10.0)
+function solve_p(p :: SVector)
+    ts, us = solve((t, u) -> lotka_volterra(t, u, p=p), start, dt=0.25, tmin=0.0, tmax=10.0)
+    xy = hcat([[u[i] for u in us] for i in 1:2]...)
+    return xy
 end
 
+xy = solve_p(p)
 ss_ = ForwardDiff.jacobian(solve_p, p)
+ss_ = reshape(ss_, (:, 2, 4))
+@assert all(abs.(ss_ - reshape(ss, (:, 2, 4))) .< .0001)
 #+END_SRC
 
 #+RESULTS:
-:RESULTS:
-# [goto error]
-#+begin_example
-MethodError: no method matching Float64(::ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4})
-Closest candidates are:
-  Float64(::Real, !Matched::RoundingMode) where T<:AbstractFloat at rounding.jl:194
-  Float64(::T<:Number) where T<:Number at boot.jl:718
-  Float64(!Matched::Int8) at float.jl:60
-  ...
 
-Stacktrace:
- [1] convert(::Type{Float64}, ::ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4}) at ./number.jl:7
- [2] macro expansion at /home/radical/.julia/packages/StaticArrays/3KEjZ/src/util.jl:11 [inlined]
- [3] convert_ntuple at /home/radical/.julia/packages/StaticArrays/3KEjZ/src/util.jl:8 [inlined]
- [4] SArray{Tuple{2},Float64,1,2}(::Tuple{ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4},ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4}}) at /home/radical/.julia/packages/StaticArrays/3KEjZ/src/SArray.jl:28
- [5] convert at /home/radical/.julia/packages/StaticArrays/3KEjZ/src/convert.jl:10 [inlined]
- [6] push!(::Array{SArray{Tuple{2},Float64,1,2},1}, ::SArray{Tuple{2},ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4},1,2}) at ./array.jl:852
- [7] #solve#16(::Float64, ::Float64, ::Float64, ::Function, ::typeof(solve), ::Function, ::SArray{Tuple{2},Float64,1,2}) at ./In[5]:6
- [8] (::getfield(Main, Symbol("#kw##solve")))(::NamedTuple{(:dt, :tmin, :tmax),Tuple{Float64,Float64,Float64}}, ::typeof(solve), ::Function, ::SArray{Tuple{2},Float64,1,2}) at ./none:0
- [9] solve_p(::SArray{Tuple{4},ForwardDiff.Dual{ForwardDiff.Tag{typeof(solve_p),Float64},Float64,4},1,4}) at ./In[16]:4
- [10] static_dual_eval(::Type{ForwardDiff.Tag{typeof(solve_p),Float64}}, ::typeof(solve_p), ::SArray{Tuple{4},Float64,1,4}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/apiutils.jl:32
- [11] vector_mode_jacobian(::Function, ::SArray{Tuple{4},Float64,1,4}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/jacobian.jl:173
- [12] jacobian(::Function, ::SArray{Tuple{4},Float64,1,4}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/jacobian.jl:81
- [13] top-level scope at In[16]:6
-#+end_example
-:END:
+So our sensitivity algorithm seems to work correctly.
 
 ** part 3: parameter estimation
+   We can compute the gradient of the loss with respect to the parameters:
+
+   $$\frac{dl}{d\pv} = \frac{dl}{d\uv} \frac{d\uv}{d\pv}$$
+
+   Note the multiplication order; the gradient is a row vector.
+   We have $l = (x - x^*)^2 + (y - y^*)^2$, where $x^*$ is the target value of $x$ at a point. Therefore:
+
+   $$\frac{dl}{d\uv} = \left(\begin{array}{cc}\frac{dl}{dx} & \frac{dl}{dy}\end{array}\right)
+   = \left(\begin{array}{cc} 2(x-x^*) & 2(y-y^*) }\end{array}\right)$$
+
+   Which we can sum over all the data points.
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+
+function compute_grads(p :: SVector, training_xy :: Array)
+    _, us = solve((t, u) -> lotka_volterra_sens(t, u, p), start_, dt=0.25, tmin=0.0, tmax=10.0)
+
+    dldp = @SMatrix [0. 0 0 0]
+    for i in 1:(size(us)[1])
+        ut = training_xy[i, :]
+        u, s = unwrap_sensitivities(us[i])
+
+        x, y = u
+        xt, yt = ut
+
+        dldu = @SMatrix [2(x-xt) 2(y-yt)]
+        dldp += dldu * s
+    end
+
+    # mean over training data set
+    dldp /= size(us)[1]
+
+    reshape(dldp, 4)
+end
+
+p_ = @SVector [1.2, 0.8, 2.8, 0.8]
+sens_grads = compute_grads(p_, xy)
+()
+#+END_SRC
+
+#+RESULTS:
+
+
+Let's again compare it to the results from ForwardDiff:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+function compute_loss(p :: SVector, training_xy :: Array)
+    _, us = solve((t, u) -> lotka_volterra(t, u, p=p), start, dt=0.25, tmin=0.0, tmax=10.0)
+
+    loss = 0.0
+    for i in 1:size(us)[1]
+        xt, yt = us[i]
+        x, y = training_xy[i, :]
+        loss_i = (x - xt)^2 + (y - yt)^2
+        loss += loss_i
+    end
+
+    loss /= size(us)[1]
+
+    loss
+end
+
+fd_grads = ForwardDiff.gradient((p) -> compute_loss(p, xy), p_)
+@assert all(abs.(fd_grads - sens_grads) .< .1)
+#+END_SRC
+
+#+RESULTS:
+
+
+Seems reasonable. Now, let's fit the model:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+function fit_parameters(p0 :: SVector, training_xy :: Array; steps = 1000, alpha = 0.001)
+    p = p0
+    intermediates = typeof(p)[]
+
+    for _ in 1:steps
+        push!(intermediates, p)
+        dldp = compute_grads(p, training_xy)
+        p = p - dldp * alpha
+    end
+
+    p, intermediates
+end
+
+p_fit, intermediates = fit_parameters(p_, xy)
+p_fit
+#+END_SRC
+
+#+RESULTS:
+: 4-element SArray{Tuple{4},Float64,1,4} with indices SOneTo(4):
+:  1.5226861718402038
+:  1.01427426674589
+:  2.9340399220263254
+:  0.9768262463926147
+
+That's close to the correct values of $[1.5, 2.0, 3.0, 1.0]$.
+
+We can plot it:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+function plot_compare(p_fit, title)
+    ts, us = solve((t, u) -> lotka_volterra(t, u, p=p), start, dt=0.25, tmin=0.0, tmax=10.0)
+    us = hcat([[u[i] for u in us] for i in 1:2]...)
+    ts_fit, us_fit = solve((t, u) -> lotka_volterra(t, u, p=p_fit), start, dt=0.25, tmin=0.0, tmax=10.0)
+    us_fit = hcat([[u[i] for u in us_fit] for i in 1:2]...)
+    plot(ts, hcat(us, us_fit), format=:png, dpi=200, labels=["x", "y", "x*", "y*"], title=title)
+end
+plot_compare(p_fit, "comparison")
+#+END_SRC
+
+#+RESULTS:
+[[file:./.ob-jupyter/8e9b970df3f5051955c8fc14ad1c831497e60ed4.png]]
+
+The solutions overlay nearly perfectly, even if the parameters are slightly off. More data points would let the parameters get even closer.
+
+We can also plot the fit of the data over the course of training:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both :noeval
+@gif for i in 1:3:330
+    plot_compare(intermediates[i], "fit: step $i")
+end
+#+END_SRC
+
+Link to the gif: https://i.imgur.com/YSYEMTI.mp4
+
+** problem 2: bandwidth maximization
