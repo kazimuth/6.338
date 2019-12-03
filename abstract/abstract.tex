@@ -1,0 +1,150 @@
+% Created 2019-11-14 Thu 22:35
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\ifdefined\orglatexfragmentpreview
+\else
+\usepackage{iclr2020_conference,times}
+\fi
+\usepackage{hyperref}
+\usepackage{url}
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+\newcommand{\xv}[0]{\mathbf{x}}
+\newcommand{\yv}[0]{\mathbf{y}}
+\newcommand{\zv}[0]{\mathbf{z}}
+\newcommand{\fv}[0]{\mathbf{f}}
+\newcommand{\J}[0]{\mathbf{J}}
+\newcommand{\gv}[0]{\mathbf{g}}
+\newcommand{\hv}[0]{\mathbf{h}}
+\newcommand{\hxo}[0]{\mathbf{h}_0}
+\newcommand{\dd}[1]{\mathrm{d}#1}
+\newcommand{\piv}[0]{\boldsymbol{\pi}}
+\newcommand{\av}[0]{\mathbf{a}}
+\newcommand*{\Oc}[0]{\mathcal{O}}
+\newcommand*{\obsint}[1]{\langle #1 \rangle}
+\newcommand*{\Wv}[0]{\mathbf{W}}
+\newcommand*{\Av}[0]{\mathbf{A}}
+\newcommand*{\Wa}[0]{\widetilde{\mathbf{W}}}
+\newcommand*{\Aa}[0]{\widetilde{\mathbf{A}}}
+\newcommand*{\approxident}{%
+\mathrel{\vcenter{\offinterlineskip
+\hbox{$\sim$}\vskip-.35ex\hbox{$\sim$}}}}
+\usepackage{mathtools}
+\DeclarePairedDelimiter\abs{\lvert}{\rvert}%
+\DeclarePairedDelimiter\norm{\lVert}{\rVert}%
+% Swap the definition of \abs* and \norm*, so that \abs
+% and \norm resizes the size of the brackets, and the
+% starred version does not.
+\makeatletter
+\let\oldabs\abs
+\def\abs{\@ifstar{\oldabs}{\oldabs*}}
+%
+\let\oldnorm\norm
+\def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
+\makeatother
+\renewcommand*{\maketitle}[0]{}
+\renewcommand*{\tableofcontents}[0]{}
+\iclrfinaltrue
+\setlength{\abovedisplayskip}{0pt}
+\setlength{\belowdisplayskip}{0pt}
+\author{James Gilles}
+\date{01 November 2019}
+\title{Abstract: A High-Performance Implementation of ABCNets in Flux.jl}
+\hypersetup{
+ pdfauthor={James Gilles},
+ pdftitle={Abstract: A High-Performance Implementation of ABCNets in Flux.jl},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 26.3 (Org mode 9.2.6)}, 
+ pdflang={English}}
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\textsc{Abstract: A High-Performance Implementation of ABC-Nets in Flux.jl}
+
+James Gilles
+
+\today
+
+In the past decade, deep neural networks have achieved rapid uptake in many fields
+and applications. However, deep neural networks require large amounts
+of memory and compute to execute. This prevents them from being deployed in resource
+-constrained environments like mobile devices \citep{MobileNets}. In addition,
+network training is expensive; Full
+development of a new deep network architecture has been estimated to have an equivalent
+carbon footprint to the lifetime footprint of five consumer cars \citep{EmitCarbon}.
+
+To address this issue, researchers are looking into techniques for model compression,
+such as \textbf{model quantization}, which reduces the bit-widths used in neural network
+computations. One proposed quantization
+technique is XNORNets, and their extension ABCNets \citep{XNORNets}\citep{ABCNets}.
+XNORNETs quantize network weights and activations to a single
+bit, pack these bits into 32- or 64-bit integers, and compute the dot products of
+these vectors using the XNOR operation. This allows extremely efficient network
+evaluation, taking the dot product of 64 weights and activations in 2
+machine instructions. However, single-bit quantization causes major accuracy losses.
+ABCNets address this problem by approximating weights and
+activations using \textbf{linear combinations} of \textbf{binary arrays}.
+
+Looking at matrix multiplication -- which can be generalized to batched convolution --
+we approximate weights and activations as follows:
+$$\Wv \approxident \Wa = \alpha_1 \Wa_1 + \alpha_2 \Wa_2 + ... + \alpha_M \Wa_M = \sum_i^M \alpha_i \Wa_i$$
+$$\Av \approxident \Aa = \beta_1 \Aa_1 + \beta_2 \Aa_2 + ... + \beta_N \Aa_N = \sum_j^N \beta_j \Aa_j $$
+Where \(\Wa_i\) and \(\Aa_j\) are binarized versions of weights and activations, learned by a
+custom linear-regression based routine during training (not described here for space
+reasons).
+Then, we have:
+$$\Wv\Av \approxident \Wa\Aa = (\sum_i^M \alpha_i \Wa_i) (\sum_j^N \beta_j \Aa_j) \\
+                            = \sum_i^M \sum_j^N \alpha_i \beta_j \Wa_i \Aa_j$$
+That is, the product of the approximated weights and activations can be
+computed in \(M*N\) XNOR-matrix-multiplications, where \(M\) and \(N\) are the bit-widths of
+weights and activations respectively.
+
+ABCNets have been found to retain most of their accuracy compared to non-quantized networks,
+with only six percent accuracy loss
+in ResNet20 on CIFAR10 when quantizing to \(M=5,N=3\). However, their potential performance
+gains have not been measured in practice; researchers implemented the proposed quantization
+routines using floating point numbers, instead of an actual accelerated implementation.
+
+For my 18.337 final project, I'll be implementing a GPU-accelerated version of ABC-Nets
+using Flux.jl and CUDAnative.jl \citep{FluxJL}\citep{CUDAnativeJL}. I'll measure the
+range of acceptable \(M,N\) values for which ABCNet-convolution is faster than
+32-bit and 16-bit floating point convolution baselines.
+
+I'll train WideResNets \cite{WideResNets}, a widely-used benchmark network,
+using my new quantization primitives, and measure total performance gains / accuracy losses
+on the CIFAR10 dataset.
+
+I'll also implement the adjoint operation, to allow training to be accelerated;
+and investigate quantizing gradients using the same strategy during training.
+
+I'll also investigate an extension proposed in the original paper, which used different
+quantization constants per-output-channel to allow more flexibility in training.
+
+This work will empirically verify whether or not ABCNets are a useful optimization in
+practice. It will also result in an open-source ABCNet-convolution implementation that
+I hope to get merged into Flux.jl.
+
+
+
+
+
+
+\bibliography{./everything.bib}
+\bibliographystyle{iclr2020_conference}
+\end{document}

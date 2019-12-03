@@ -1,0 +1,48 @@
+#+TITLE: 6.338 lecture 13: mpi.jl
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 13 november 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* MPI terminology
+MPI: Message Passing Interface
+
+MPI.init(): Initializes the MPI environment
+
+MPI.COMM_WORLD: the MPI communicator- everything processes need to
+communicate
+
+MPI.Comm_rank: an integer 0:N-1; each MPI process has a different rank, you can
+think of it as a process ID
+
+MPI.Comm_size: the number of MPI processes (N)
+
+Barrier: all process wait until everyone reaches this point
+
+Send/Receive: Point-to-point communication: rank i sends a message to rank j and
+rank j receives a message from rank i
+
+Blocking/Unblocking: Blocked send/receives wait until the message has been sent or
+received before proceeding; unblocking send/receives continue
+
+Broadcast: one-to-all communication: rank i sends message to rank 0:i-1,i+1:N
+
+Gather: all-to-one communication: rank 0:i-1,i+1:N sends message to rank i
+
+Reduce: all-to-one communication: gather messages onto rank i and perform a reduce
+operation
+
+Scatter: one-to-all send one piece to each
+
+* API
+https://juliaparallel.github.io/MPI.jl/latest/functions/
+
+* On Supercloud
+  module load mpi/mpich-x86_64
+  module load julia-latest
+
+  julia: ]add MPI
+
+* Examples
+  https://github.com/llsc-supercloud/teaching-examples/tree/master/Julia/word_count/Parallel/mpi

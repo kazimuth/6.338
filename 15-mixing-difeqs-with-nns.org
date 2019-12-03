@@ -1,0 +1,234 @@
+#+TITLE: 18.337 lecture 15: mixing differential equations with neural networks
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 20 november 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+#+LATEX_HEADER: \newcommand{\xv}[0]{\mathbf{x}}
+#+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
+#+LATEX_HEADER: \newcommand{\zv}[0]{\mathbf{z}}
+#+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
+#+LATEX_HEADER: \newcommand{\J}[0]{\mathbf{J}}
+#+LATEX_HEADER: \newcommand{\gv}[0]{\mathbf{g}}
+#+LATEX_HEADER: \newcommand{\hv}[0]{\mathbf{h}}
+#+LATEX_HEADER: \newcommand{\sv}[0]{\mathbf{s}}
+#+LATEX_HEADER: \newcommand{\uv}[0]{\mathbf{u}}
+#+LATEX_HEADER: \newcommand{\pv}[0]{\mathbf{p}}
+#+LATEX_HEADER: \newcommand{\kv}[0]{\mathbf{k}}
+#+LATEX_HEADER: \newcommand{\hxo}[0]{\mathbf{h}_0}
+
+
+TODO: ask about densenets
+
+TODO: ask about physics-informed DL; i was confused by the time stepping stuff. Were they fitting a neural network for each time step?
+
+* Intro
+  So far: we've found how all these ideas are related.
+  - Adjoints are like backpropagation; and you can backpropagate through ODEs.
+  - Recurrent neural networks are just discrete dynamical systems
+  - Convolutions in CNNs are the same as PDE stencils
+
+  In science: derive the stencil w/ error bounds; in deep learning: learn the stencil
+
+  The current literature's question: How can you combine these two ideas?
+
+* Generalized Neural Differential Equations
+  Have an ODE $u' = f(u, p, t)$; can let $f$ be a neural network.
+
+  Can take that further.
+
+  Have multiple forms, all super-problems of ODEs; can derive adjoints for different forms of each.
+
+  OR, just describe solvers so you can differentiate through them! That's ~DifEqFlux.jl~
+
+  And any time you see a function, you can replace it with a neural network.
+
+*** Stochastic Differential Equation
+    Stochastic Differential Equation: take a normally distributed random number, multiply it by
+    $\sqrt{dt}$, multiply it by $g(x, p, t)$, add it to $f$. This is truly infinitely / fractally random;
+    although you can jump across larger pieces of randomness.
+
+    Good book on infinitesimal analysis: "Radically Elementary Probability Theory". You can also describe this
+    as putting integrals on all your terms.
+
+    Now you've got an ODE with a drift term. e.g. linear SDE:
+    $$dX_t = \mu X_t dt + \sigma X_t dW_t$$
+
+    $dW_t = \mu$, $\mu \sim N(0, dt)$; in julia, ~mu = sqrt(dt) * randn()~
+
+    Calculus needs to be re-derived for this set of objects; doesn't satisfy standard assumptions.
+
+    $X_t = X_0 e^{mu_t - \sigma^2/2 [...]}$
+
+    Is actually biased towards zero; randomness is changing mean behavior.
+*** Delay Differential Equation
+    $X' = X(t-1)$
+
+    Start: $X(0) = 1, X(t) = 0 \; \forall t < 0$
+
+    Really interesting behavior: piecewise polynomial. Constant from 0 to 1, linear from 1 to 2, quadratic from 2 to 3.
+
+    Piecewise differentiable and continuous.
+
+    This shows up in biology, e.g. because behavior now depends on proteins available in the past, because things take time.
+
+*** Differential Algebraic Equation
+    Widely used in industry, more than ODEs.
+
+    $u' = f(z, u, p, t); g(z, u) = 0$
+
+    e.g. robotics systems, where rigid-body dynamics.
+
+    Can also be thought of as an implicit ODE, $f(u', u, p, t) = 0\; \forall t$
+
+    Mixing differential equations w/ nonlinear constraints.
+
+    Can also think of this in a mass matrix form:
+
+    $$Mu' = f(u,p,t)$$
+
+    If $M$ is not singular, $u' = M^-f$, so we have an ODE.
+
+    If $M$ *is* singular, you get an algebraic equation.
+
+    We talked about these before, when talking about implicit solvers.
+
+    $I - \gamma J$ goes to $M - \gamma J$
+
+* Solving ODEs with NNs
+  This result goes back to 1998. We have $u' = f(u, t)$.
+
+  Try: make $u$ a neural network.
+
+  How do we know when $N(t)$ is correct? When $N'(t) = f(N(t), t)$.
+
+  So just use that as your loss; make sure you sample your space well enough for that to work.
+
+  Quick question: what is the most effective way to compute $\frac{dN}{dt}$?
+
+  $\to$ Forward-mode AD! It's good when you have few inputs and a lot of outputs.
+
+  We also have initial condition; just add that to the loss function, maybe with a lambda.
+
+  Can also redefine $T(t) = u_0 + tN(t)$. This forces NN to satisfy initial conditions, by definition.
+* Solving PDEs with NNs
+  e.g. Poisson equation w/ Dirichlet boundary equations, $\Delta u = f(x,y)$
+
+  Can define $T(x,y) = A(x,y) + x(1 - x)y(1-y)N(x,y)$
+
+  We have two derivatives through T, one forward-mode, one reverse-mode. One w.r.t $\xv$, one w.r.t. $t$.
+
+  This is *mesh-free*, because ...
+
+  In a mesh-based method in D dimensions, you need $N^D$.
+  Your storage for the mesh points quickly gets bigger than the number of atoms in the universe.
+
+  Note: this is horrifyingly inefficient; however, was reinvented in 2018 as the *Deep Galerkin Method*.
+  That paper has a big thing about choosing the points you sample on -- random sampling seems fine.
+
+  (*jhg*: but why would that work? ... well, why do image recognition nets work? They're similarly undersampled.)
+
+  Note: previously, people only solved 3D problems, 'cause, 3 physical dimensions. But this does show up.
+
+  Can use (weak) GANs for this as well; have an adversary predict bad points for solver, instead of sampling.
+
+  This will be much less efficient than traditional solvers in low dimensions, but it's basically the only thing
+  you can do in high dimensions.
+
+* Physics informed deep networks
+  Fairly similar. But you add in real data.
+
+  Add a mean-squared error term showing that network should be $l_2$ close to our real data; and show that $f$ should be close
+  to 0 at all points.
+
+  They've shown that this is a very data-efficient way to fit real data; you're basically using ODE / PDE as prior information.
+  Could also fit only PDE first, then retrain w/ real data.
+
+  This is quite inefficient though.
+
+  Alternative: don't turn $u$ into a neural network; first discretized it, *then* apply a neural network.
+
+  For example, euler method: $u_n+1 = u_n - \Delta t \mathcal{N}(N_n; \lambda)$
+
+  Now put a neural network on each $u$.
+* Understanding the setup for terminal PDEs
+** Black-Scholes
+  Example: options trading.
+
+  Say $X_t$ is a stock price. An option is a contract to buy/sell a stock at a price $p$ at time $T$.
+
+  No matter what the stock price is, you know the actual value of the contract at that time.
+
+  The question is: what will the cost actually be? Well, if you have an underlying model, you can solve it, then make the decision.
+
+  Black-Scholes is a stochastic ODE; can solve it to find probabilities of stock price in the future.
+
+  The idea: instead of pushing through probabilities, define a adjoint problems on a PDE, and use that to find probabilities.
+
+  Let $V(t, X)$: value of contract at $t$, given a current stock price of $X$.
+
+  Note: with PDE people, $X_t$ is a derivative; with stochastic PDEs, $X_t = X(t)$. not confusing at all
+
+  We know the value of the contract at the final time point; given $X$, we have the value.
+
+  Want to find $V(0, \zeta)$; $\zeta$: current stock price.
+
+  Need to propagate value backwards through time.
+
+  This leads to...
+
+** Stochastic Optimal Control Problem / Hamilton-Jacobi-Bellman Equations
+   We have some underlying stochastic model. We want to affect the model.
+
+   Want to optimize the amount of control we have.
+
+   (in Black-Scholes setting, the stochastic process is people's reaction to our behavior. "The fed is too hands on, so...")
+
+   Dimensionality is the number of interacting agents.
+
+* Deep BDSE
+  https://arxiv.org/abs/1706.04702
+
+  Have a general class of PDEs known as semilinear parabolic PDEs.
+
+  https://www.researchgate.net/publication/318337291_Solving_high-dimensional_partial_differential_equations_using_deep_learning
+
+  This form represents convection + advection + whatever else.
+
+  Need to supply a few terms.
+
+  Then, can couple forward stochastic process with backward solving.
+
+  Given a single draw of random values; we know the value condition must hold.
+
+  Let initial condition and backward solution be a neural network.
+
+  The loss function is then: given any set of random values, $u(T) = g(X(T))$
+
+  The second neural network is the solution to the PDEs.
+
+  Initial condition is fed stock price (as determined from backwards process) and outputs value.
+
+  > In recent years, a new class of techniques, called deep learning, have emerged in machine learning and have proven to be very effective in dealing with a large class of high dimensional problems in computer vision (cf., e.g., [23]), natural language processing (cf., e.g.,[20]), time series analysis, etc. (cf., e.g., [15, 24]). This success fuels in speculations that deep learning might hold the key to solve the curse of dimensionality problem. It should be emphasized that at the present time, there are no theoretical results that support such claims although the practical success of deep learning has been astonishing. However, this should not prevent us from trying to apply deep learning to other problems where the curse of dimensionality has been the issue.
+
+* Surrogate Acceleration Method
+  Did you see the paper (it's MIT press, so you're supposed to like it...) that said they solved the 3-body problem
+  1,000,000,000 times faster than traditional ODE solvers.
+
+  https://arxiv.org/abs/1910.07291
+
+  Say: I want $g(p)$ fast, where $g$ has an underlying differential equation. $g$ can be anything, e.g.
+  average number of wolves over time in lotka-volterra.
+
+  Can solve $g(p)$ the old-fashioned way, then use those for data points.
+
+  If you've done this for "enough" points, this will work well.
+
+  So on the three-body problem, they spent ten days generating solutions.
+
+  This is basically just a way to shift a cost to precomputation. Total computation cost is more, but lets you evaluate faster.
+
+  For example, in a drone flight: if you have some super complex computation to predict behavior; you can pre-compute that.
+
+  (*jhg*: how did they evaluate this method?)

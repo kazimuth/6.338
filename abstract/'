@@ -1,0 +1,80 @@
+#+TITLE: Abstract: A High-Performance Implementation of ABC-Nets in Flux.jl
+
+#+AUTHOR: James Gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 01 November 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+#+LATEX_CLASS: article
+
+#+LATEX_HEADER: % Optional math commands from https://github.com/goodfeli/dlbook_notation.
+#+LATEX_HEADER: \usepackage{iclr2020_conference,times}
+#+LATEX_HEADER: \input{math_commands.tex}
+#+LATEX_HEADER: \usepackage{hyperref}
+#+LATEX_HEADER: \usepackage{url}
+
+#+LATEX_HEADER: \newcommand{\xv}[0]{\mathbf{x}}
+#+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
+#+LATEX_HEADER: \newcommand{\zv}[0]{\mathbf{z}}
+#+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
+#+LATEX_HEADER: \newcommand{\J}[0]{\mathbf{J}}
+#+LATEX_HEADER: \newcommand{\gv}[0]{\mathbf{g}}
+#+LATEX_HEADER: \newcommand{\hv}[0]{\mathbf{h}}
+#+LATEX_HEADER: \newcommand{\hxo}[0]{\mathbf{h}_0}
+#+LATEX_HEADER: \newcommand{\dd}[1]{\mathrm{d}#1}
+#+LATEX_HEADER: \newcommand{\vv}[0]{\mathbf{v}}
+#+LATEX_HEADER: \newcommand{\piv}[0]{\boldsymbol{\pi}}
+#+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
+#+LATEX_HEADER: \newcommand{\av}[0]{\mathbf{a}}
+#+LATEX_HEADER: \newcommand*{\Oc}[0]{\mathcal{O}}
+#+LATEX_HEADER: \newcommand*{\obsint}[1]{\langle #1 \rangle}
+
+#+LATEX_HEADER: \newcommand*{\approxident}{%
+#+LATEX_HEADER: \mathrel{\vcenter{\offinterlineskip
+#+LATEX_HEADER: \hbox{$\sim$}\vskip-.35ex\hbox{$\sim$}\vskip}}}
+
+#+LATEX_HEADER: \usepackage{mathtools}
+
+#+LATEX_HEADER:
+#+LATEX_HEADER: \DeclarePairedDelimiter\abs{\lvert}{\rvert}%
+#+LATEX_HEADER: \DeclarePairedDelimiter\norm{\lVert}{\rVert}%
+#+LATEX_HEADER:
+#+LATEX_HEADER: % Swap the definition of \abs* and \norm*, so that \abs
+#+LATEX_HEADER: % and \norm resizes the size of the brackets, and the
+#+LATEX_HEADER: % starred version does not.
+#+LATEX_HEADER: \makeatletter
+#+LATEX_HEADER: \let\oldabs\abs
+#+LATEX_HEADER: \def\abs{\@ifstar{\oldabs}{\oldabs*}}
+#+LATEX_HEADER: %
+#+LATEX_HEADER: \let\oldnorm\norm
+#+LATEX_HEADER: \def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
+#+LATEX_HEADER: \makeatother
+
+#+LATEX_HEADER: \newcommand*{\approxident}{%
+#+LATEX_HEADER: \mathrel{\vcenter{\offinterlineskip
+#+LATEX_HEADER: \hbox{$\sim$}\vskip-.35ex\hbox{$\sim$}\vskip}}}
+
+#+LATEX_HEADER: % uhhh
+#+LATEX_HEADER: \renewcommand*{\tableofcontents}{}
+
+#+LATEX_HEADER: \iclrfinaltrue
+
+
+\today
+
+In the past decade, deep neural networks have achieved state-of-the-art results on many benchmark problems. They are receiving rapid uptake and deployment in many fields and applications. However, deep neural networks are large, requiring large amounts of memory and compute to execute. This prevents them from being deployed in resource-constrained environments like mobile devices [[citep:MobileNets]]. In addition, network training is expensive, in terms of both hardware resources and energy. Full development of a new deep network architecture has been estimated to have an equivalent carbon footprint as *five consumer automobiles*, over the course of their lifetimes [[citep:EmitCarbon]].
+
+Addressing this issue is the problem of *model compression*: how to reduce the size and evaluation cost of models while retaining accuracy. One interesting approach is *model quantization*: reducing the bit-width of network weights and activations. A variety of quantization schemes have been proposed, from Google's relatively generous ~bfloat16~ [[citep:bfloat16]] to extremely aggressive schemes like binarized neural networks [[citep:BinarizedNeuralNetworks]]. Unfortunately, most of these quantization schemes require customized hardware support, making deployment challenging.
+
+An exception to this rule is XNOR-nets, and their extension ABC-Nets [[citep:XNorNets]] [[citep:ABCNets]]. XNorNets quantize network weights and activations to a single bit, pack these bits into 32- or 64-bit integers, and compute the dot products of these vectors using the ~xnor~ operation. This allows extremely efficient network evaluation, taking the dot product of 64 weights and activations in 2 widely-deployed machine instructions (~xor~ and ~not~. However, 1-bit quantization causes double-digit accuracy losses. ABC-Nets address this problem by approximating weights / activations using linear combinations of binary arrays:
+
+$$
+
+Thus far, ABC-Nets have been implemented
+
+
+
+
+#+LATEX: \bibliography{./everything.bib}
+#+LATEX: \bibliographystyle{iclr2020_conference}
