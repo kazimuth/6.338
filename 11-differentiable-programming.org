@@ -5,6 +5,11 @@
 #+OPTIONS: tex:t latex:t
 #+STARTUP: latexpreview
 
+#+LATEX_HEADER: \newcommand*\tderiv[2]{\frac{\mathrm{d}#1}{\mathrm{d}#2}}
+#+LATEX_HEADER: \newcommand*\pderiv[2]{\frac{\partial #1}{\partial #2}}
+#+LATEX_HEADER: \newcommand*\lgrad[1]{\overline{#1}}
+#+LATEX_HEADER: \newcommand*\jint[4]{\int_{#1}^{#2} #3 \; \mathrm{d}#4}
+
 * intro
   Our last discussion focused on how, at a high mathematical level, one could in theory build programs which compute gradients in a fast manner by looking at the computational graph and performing reverse-mode automatic differentiation. Within the context of parameter identification, we saw many advantages to this approach because it did not scale multiplicatively in the number of parameters, and thus it is an efficient way to calculate Jacobians of objects where there are less rows than columns (think of the gradient as 1 row).
 
@@ -15,6 +20,7 @@
   - We need a systematic way to derive "adjoint" relationships (pullbacks).
 
   - We need to see if there are better ways to fit parameters to data, rather than performing reverse-mode AD through entire programs!
+
 
 * implementation of reverse-mode AD
   static graphs
@@ -27,11 +33,67 @@
 * reverse-mode rules: adjoints and implicit function theorem
   want to derive high-level adjoint rules to minimize work
 
+  See: https://math.mit.edu/~stevenj/18.336/adjoint.pdf
+
   have some for:
   linear solve
   nonlinear solve
-  ODE solve (...but this is hard)
+  ODE solve
 
+** ODE solve adjoint
+
+   We want to take gradient of some cost function integrated throughout
+   the difeq, e.g.:
+
+   $$u' = f(u, p, t)$$
+   $$G(u, p) = G(u(p)) = \jint{t_0}{T}{ g(u(t, p)) }{t}$$
+
+   Introduce a Lagrange multiplier:
+
+   $$I(p) = G(p) - \jint{t_0}{T}{ \lambda^* (u' - f(u, p, t)) }{t}$$
+
+   Note that this extra term is zero; $I = G$. So:
+
+   $$\tderiv{G}{p} = \tderiv{I}{p} =
+\tderiv{}{p} \left( \jint{t_0}{T}{ g(u(t, p)) }{t} - \jint{t_0}{T}{ \lambda^* (u' - f(u, p, t)) }{t}\right)$$
+
+   $$= \int_{t_0}^T (g_p + g_u \lgrad{u}) \; dt - \int_{t_0}^T \lambda^* (\lgrad{u}' f_u \lgrad{u} - f_p) \; dt$$
+
+   Require that:
+
+   $$\lambda' = -\tderiv{f}{u}^* - \left(\tderiv{g}{u}\right)^*$$
+   $$\lambda(T) = 0$$
+
+   integrate by parts to $\lambda^* s;$, and get:
+
+   $$\tderiv{G}{p} = \lambda^*(t_0) \tderiv{G}{u}(t_0) + \jint{t_0}{T}{ (g_p + \lambda^* f_p) }{t}$$
+
+   Question: * is matrix conjugate, right?
+
+   See:
+
+
+   https://arxiv.org/pdf/1806.07366.pdf
+
+** algorithm 1
+   [[./alg1.png]]
+
+   For each slice of time between discrete sample points.
+
+   $z$ is the solution, $L$ is the loss, $a(t)=\pderiv{L}{z(t)}$.
+
+   $z(t_1)$ was found through ODEsolve forward, $\pderiv{L}{z(t_1)}$ is from the L2 loss.
+
+   How do we find $\pderiv{f}{z}$ and $\pderiv{f}{\theta}$?
+
+   Can pull back basis vectors to find them i guess.
+
+   No wait, that's a VJP so you use backprop!
+
+   $z(t_1)$ was found through ODEsolve forward, $\pderiv{L}{z(t_1)}$ is from the L2 loss.
+
+   Question: if the ODE is taking a different path backwards through time,
+   why do the parameter sensitivities still come out OK?
 
 
 * neural ODEs

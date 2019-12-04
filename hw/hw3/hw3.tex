@@ -1,4 +1,4 @@
-% Created 2019-12-03 Tue 21:11
+% Created 2019-12-04 Wed 02:38
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -53,6 +53,15 @@
 \mathrel{\vcenter{\offinterlineskip
 \hbox{$\sim$}\vskip-.35ex\hbox{$\sim$}\vskip}}}
 \usepackage{amsthm}
+\usepackage{ifluatex, ifxetex}
+\ifx\ifxetex\ifluatex\else
+\usepackage{fontspec}
+\setmonofont[Scale=0.7]{Fira Code}
+\usepackage{geometry}
+\addtolength{\topmargin}{-.6in}
+\addtolength{\textheight}{1.2in}
+\usemintedstyle{manni}
+\fi
 \author{James Gilles}
 \date{03 December 2019}
 \title{18.337 Homework 3}
@@ -71,9 +80,11 @@
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
 using Plots
 using ForwardDiff
+using OrdinaryDiffEq
 \end{minted}
+
 \section{Problem 1}
-\label{sec:orgb9e01f9}
+\label{sec:orgd95268d}
 We want to show
 $$\B_f^\xv(1) = \transpose{(\nabla f(\xv))}$$
 The pullback \(\B\) is defined:
@@ -89,7 +100,7 @@ But this is just the jacobian \(J_f=\tderiv{f}{\xv}\), which is
 $$\tderiv{f}{\xv}=\transpose{(\nabla f(\xv))}$$
 by the definition of the jacobian. \qed
 \section{Problem 2}
-\label{sec:org0823f82}
+\label{sec:org4c14672}
 We have $$\NN(u; W_i, b_i) = W_2 \tanh.(W_1 u + b_1) + b_2$$
 In julia:
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
@@ -98,77 +109,79 @@ W1 = randn(50,2)
 W2 = randn(2,50)
 b1 = randn(50)
 b2 = randn(2)
+const param_count = sum(length(w) for w in [W1, W2, b1, b2])
 nn([0.5, 0.5], W1, W2, b1, b2)
 \end{minted}
+
 \begin{verbatim}
 2-element Array{Float64,1}:
- -4.0936909172895    
-  0.23678821259419836
+ -4.2045369953645615
+ -3.422587885695707 
 \end{verbatim}
+
 
 Straightforward enough.
 Now we need to compute the pullback for each parameter. Let's do that by breaking down the network into a series of steps,
 like a Wengert tape:
 \begin{align*}
-\gamma_1(u, W_1) : \R^{50} &= W_1 \, u \\
-\gamma_2(\gamma_1, b_1) : \R^{50} &= \gamma_1 + b_1 \\
-\gamma_3(\gamma_2) : \R^{50} &= \tanh.(\gamma_2) \\
-\gamma_4(\gamma_3, W_2) : \R^2 &= W_2 \, \gamma_3 \\
-\gamma_5(\gamma_4, b_2) : \R^2 &= \gamma_4 + b_2 \\
-\NN(\gamma_5) : \R^2 &= \gamma_5
+\eta_1(u, W_1) : \R^{50} &= W_1 \, u \\
+\eta_2(\eta_1, b_1) : \R^{50} &= \eta_1 + b_1 \\
+\eta_3(\eta_2) : \R^{50} &= \tanh.(\eta_2) \\
+\eta_4(\eta_3, W_2) : \R^2 &= W_2 \, \eta_3 \\
+\eta_5(\eta_4, b_2) : \R^2 &= \eta_4 + b_2 \\
+\NN(\eta_5) : \R^2 &= \eta_5
 \end{align*}
 Now we can compute the pullback recursively, by breaking down every operation in the network.
 \begin{align*}
-&\B^{\gamma_5}_{\NN}(\lgrad{\NN}) = \lgrad{\gamma_5} = \lgrad{\NN} \\
-&\B^{b_2}_{\gamma_5}(\lgrad{\gamma_5}) = \lgrad{b_2} =  \lgrad{\gamma_5} \\
-&\B^{\gamma_4}_{\gamma_5}(\lgrad{\gamma_5}) = \lgrad{\gamma_4} =  \lgrad{\gamma_5} \\
-&\B^{W_2}_{\gamma_4}(\lgrad{\gamma_4}) = \lgrad{W_2} =  \lgrad{\gamma_4} \transpose{\gamma_3} \\
-&\B^{\gamma_3}_{\gamma_4}(\lgrad{\gamma_4}) = \lgrad{\gamma_3} = \transpose{W_2} \lgrad{\gamma_4} \\
-&\B^{\gamma_2}_{\gamma_3}(\lgrad{\gamma_3}) = \lgrad{\gamma_2} = \lgrad{\gamma_3} \, .* \, \tanh'.(\gamma_2) = \lgrad{\gamma_3} \, .* \, \mathrm{sech}^2.(\gamma_2)\\
-&\B^{b_1}_{\gamma_2}(\lgrad{\gamma_2}) = \lgrad{b_1} = \lgrad{\gamma_2}\\
-&\B^{\gamma_1}_{\gamma_2}(\lgrad{\gamma_2}) = \lgrad{\gamma_1} = \lgrad{\gamma_2}\\
-&\B^{W_1}_{\gamma_1}(\lgrad{\gamma_1}) = \lgrad{W_1} = \lgrad{\gamma_1} \transpose{u}\\
-&\B^{u}_{\gamma_1}(\lgrad{\gamma_1}) = \lgrad{u} = \transpose{W_1} \lgrad{\gamma_1}
+&\B^{\eta_5}_{\NN}(\lgrad{\NN}) = \lgrad{\eta_5} = \lgrad{\NN} \\
+&\B^{b_2}_{\eta_5}(\lgrad{\eta_5}) = \lgrad{b_2} =  \lgrad{\eta_5} \\
+&\B^{\eta_4}_{\eta_5}(\lgrad{\eta_5}) = \lgrad{\eta_4} =  \lgrad{\eta_5} \\
+&\B^{W_2}_{\eta_4}(\lgrad{\eta_4}) = \lgrad{W_2} =  \lgrad{\eta_4} \transpose{\eta_3} \\
+&\B^{\eta_3}_{\eta_4}(\lgrad{\eta_4}) = \lgrad{\eta_3} = \transpose{W_2} \lgrad{\eta_4} \\
+&\B^{\eta_2}_{\eta_3}(\lgrad{\eta_3}) = \lgrad{\eta_2} = \lgrad{\eta_3} \, .* \, \tanh'.(\eta_2) = \lgrad{\eta_3} \, .* \, \mathrm{sech}^2.(\eta_2)\\
+&\B^{b_1}_{\eta_2}(\lgrad{\eta_2}) = \lgrad{b_1} = \lgrad{\eta_2}\\
+&\B^{\eta_1}_{\eta_2}(\lgrad{\eta_2}) = \lgrad{\eta_1} = \lgrad{\eta_2}\\
+&\B^{W_1}_{\eta_1}(\lgrad{\eta_1}) = \lgrad{W_1} = \lgrad{\eta_1} \transpose{u}\\
+&\B^{u}_{\eta_1}(\lgrad{\eta_1}) = \lgrad{u} = \transpose{W_1} \lgrad{\eta_1}
 \end{align*}
 (Note that I use the rules derived in lecture 10 here.)
 Alright, now let's write that in Julia:
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
-function nn_pullback(y_, u, W1, W2, b1, b2)
-    g1 = W1 * u
-    g2 = g1 + b1
-    g3 = tanh.(g2)
-    g4 = W2 * g3
-    g5 = g4 + b2
-    g5_ = y_
-    b2_ = y_
-    g4_ = g5_
-    W2_ = g4_ * g3'
-    g3_ = W2' * g4_
-    g2_ = g3_ .* sech.(g2).^2
-    b1_ = g2_
-    g1_ = g2_
-    W1_ = g1_ * u'
-    u_ = W1' * g1_
-    [u_, W1_, W2_, b1_, b2_]
+function nn_pullback(y̅, u, W1, W2, b1, b2)
+    η1 = W1 * u
+    η2 = η1 + b1
+    η3 = tanh.(η2)
+    η4 = W2 * η3
+    η5 = η4 + b2
+
+    η̅5 = y̅
+    b̅2 = y̅
+    η̅4 = η̅5
+    W̅2 = η̅4 * η3'
+    η̅3 = W2' * η̅4
+    η̅2 = η̅3 .* sech.(η2).^2
+    b̅1 = η̅2
+    η̅1 = η̅2
+    W̅1 = η̅1 * u'
+    u̅ = W1' * η̅1
+    [u̅, W̅1, W̅2, b̅1, b̅2]
 end
-# make sure we haven't screwed up array shapes
-nn_pullback([1, 1], [.5, .5], W1, W2, b1, b2)
-()
 \end{minted}
+\begin{verbatim}
+nn_pullback (generic function with 1 method)
+\end{verbatim}
+
+
 Now, to test this, let's compare to ForwardDiff. First we'll need some routines to store parameters in a single vector.
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
 pack(arrs...) = vcat([reshape(arr, :) for arr in arrs]...)
 function unpack(arr, shapes...)
-    first = 1
-    results = (Array{eltype(arr),N} where N)[]
-    for shape in shapes
-        last = first + foldl(*, shape) - 1
-        slice = @view arr[first:last]
-        array = reshape(slice, shape)
-        push!(results, array)
-        first = last + 1
-    end
-    results
+    N = length(shapes)
+    lengths = [*(shape...) for shape in shapes]
+    ends = accumulate(+, lengths)
+    starts = [ends[i]-lengths[i]+1 for i in 1:N]
+
+    [reshape(@view(arr[starts[i]:ends[i]]), shapes[i]) for i in 1:N]
 end
 test_shapes = [(1,), (3, 2), (2, 4), (1, 7, 2)]
 test_arrs = [randn(test_shape) for test_shape in test_shapes]
@@ -176,11 +189,11 @@ test_arrs = [randn(test_shape) for test_shape in test_shapes]
 \end{minted}
 We'll also need a loss function to convert the output to a scalar. Let's just sum the outputs:
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
-loss(y) = sum(y)
-loss_pullback(l_) = l_ .* [1, 1]
+fake_loss(y) = sum(y)
+fake_loss_pullback(l_) = l_ .* [1, 1]
 \end{minted}
 \begin{verbatim}
-loss_pullback (generic function with 1 method)
+fake_loss_pullback (generic function with 1 method)
 \end{verbatim}
 
 (You could also select individual outputs to compute rows of the Jacobian.)
@@ -190,17 +203,153 @@ Now we can use ForwardDiff to verify that it works:
 u = [1.0, 1.0]
 packed = pack(u, W1, W2, b1, b2)
 shapes = [size(u), size(W1), size(W2), size(b1), size(b2)]
-correct = unpack(ForwardDiff.gradient(p -> loss(nn(unpack(p, shapes...)...)), packed), shapes...)
+correct = unpack(ForwardDiff.gradient(p -> fake_loss(nn(unpack(p, shapes...)...)), packed), shapes...)
 output = nn(u, W1, W2, b1, b2)
-l = loss(output)
+l = fake_loss(output)
 l_ = 1
-output_ = loss_pullback(l_)
+output_ = fake_loss_pullback(l_)
 mine = nn_pullback(output_, u, W1, W2, b1, b2)
 allclose(a, b) = all(abs.(a .- b) .< .000001)
 @assert all([allclose(correct[i], mine[i]) for i in 1:5])
 \end{minted}
 It works!
+
 \section{Problem 3}
-\label{sec:orgab3613b}
-note: think of the ODE solver just like euler integration to understand how to do it in reverse?
+\label{sec:org189b1b5}
+This is fairly straightforward to implement.
+
+\begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
+function sensitivities(ts, u̅s, u0, ps)
+    # takes: parameters, sample times, sample output sensitivities, starting state
+
+    # setup
+    @assert issorted(ts)
+    @assert size(ts) == size(u̅s)
+    t0 = min(ts...)
+    t1 = max(ts...)
+
+    # define and solve forward problem
+    f = (u, ps, t) -> nn(u, ps...)
+    forward_prob = ODEProblem(f, u0, (t0, t1), ps)
+    forward_sol = solve(forward_prob, Tsit5())
+
+    # backwards function
+    function aug_f(uu̅p̅, ps, t)
+        u, u̅ = unpack(uu̅p̅, 2, 2)
+        dudt = nn(forward_sol(t), ps...)
+        du̅p̅dt = nn_pullback(-u̅, u, ps...)
+        pack(dudt, du̅p̅dt...)
+    end
+
+    # backwards initial condition
+    t_to_u̅ = Dict((ts[i], u̅s[i])
+                  for i in 1:length(ts))
+    u1 = forward_sol(t1)
+    u̅1 = t_to_u̅[t1]
+    p̅1 = zeros(param_count)
+    uu̅p̅1 = pack(u1, u̅1, p̅1)
+
+    # stopping points
+    condition(u, t, int) = t in keys(t_to_u̅)
+    effect!(int) = int.u[3:4] = t_to_u̅[int.t]
+    cb = DiscreteCallback(condition, effect!)
+
+    # solve backwards problem
+    backward_prob = ODEProblem(aug_f, uu̅p̅1, (t1, t0), ps)
+    backward_sol = solve(backward_prob, Tsit5(), callback=cb, tstop=ts)
+
+    # pack up results
+    uu̅p̅0 = backward_sol(t0)
+    _, u̅0, p̅_packed = unpack(uu̅p̅0, 2, 2, param_count)
+    p̅s = unpack(p̅_packed, [size(w) for w in ps]...)
+    u̅0, p̅s
+end
+\end{minted}
+
+\begin{verbatim}
+sensitivities (generic function with 1 method)
+\end{verbatim}
+
+
+Now, let's verify that by combining ForwardDiff and OrdinaryDiffEqs.
+
+\begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
+function result(ts, u0, ps)
+    @assert issorted(ts)
+    @assert size(ts) == size(u̅s)
+
+    t0 = min(ts...)
+    t1 = max(ts...)
+
+    f = (u, ps, t) -> nn(u, ps...)
+    forward_prob = ODEProblem(f, u0, (t0, t1), ps)
+    forward_sol = solve(forward_prob, Tsit5())
+
+    forward_sol(t1)
+end
+
+u0 = [1.0, 1.0]
+ps = [W1, W2, b1, b2]
+ts = 0.0:0.1
+
+function full(x)
+    println(typeof(x))
+    u0, ps = unpack(x, 2, param_count)
+    ps = unpack(ps, (size(w) for w in ps)...)
+    fake_loss(result(ts, u0, ps))
+end
+
+correct = ForwardDiff.gradient(full, pack(u0, ps...))
+
+\end{minted}
+
+\begin{verbatim}
+Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1}
+\end{verbatim}
+
+\begin{verbatim}
+MethodError: no method matching *()
+Closest candidates are:
+  *(!Matched::Bool, !Matched::Complex{Bool}) at complex.jl:282
+  *(!Matched::Bool, !Matched::Bool) at bool.jl:98
+  *(!Matched::Bool, !Matched::T<:AbstractFloat) where T<:AbstractFloat at bool.jl:110
+  ...
+
+Stacktrace:
+ [1] (::getfield(Main, Symbol("##49#52")))(::Tuple{}) at ./none:0
+ [2] iterate at ./generator.jl:47 [inlined]
+ [3] collect(::Base.Generator{NTuple{252,Tuple{}},getfield(Main, Symbol("##49#52"))}) at ./array.jl:606
+ [4] unpack(::SubArray{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1,Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1},Tuple{UnitRange{Int64}},true}, ::Tuple{}, ::Vararg{Tuple{},N} where N) at ./In[13]:4
+ [5] full(::Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1}) at ./In[17]:22
+ [6] chunk_mode_gradient(::typeof(full), ::Array{Float64,1}, ::ForwardDiff.GradientConfig{ForwardDiff.Tag{typeof(full),Float64},Float64,12,Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1}}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/gradient.jl:140
+ [7] gradient(::Function, ::Array{Float64,1}, ::ForwardDiff.GradientConfig{ForwardDiff.Tag{typeof(full),Float64},Float64,12,Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1}}, ::Val{true}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/gradient.jl:19
+ [8] gradient(::Function, ::Array{Float64,1}, ::ForwardDiff.GradientConfig{ForwardDiff.Tag{typeof(full),Float64},Float64,12,Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1}}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/gradient.jl:15 (repeats 2 times)
+ [9] top-level scope at In[17]:25
+\end{verbatim}
+
+\begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
+?accumulate
+\end{minted}
+
+\begin{verbatim}
+search: accumulate accumulate!
+\end{verbatim}
+
+\begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
+accumulate(+, (1,2,3))
+\end{minted}
+
+\begin{verbatim}
+MethodError: no method matching similar(::Tuple{Int64,Int64,Int64}, ::Type{Int64})
+Closest candidates are:
+  similar(!Matched::ZMQ.Message, ::Type{T}, !Matched::Tuple{Vararg{Int64,N}} where N) where T at /home/radical/.julia/packages/ZMQ/ABGOx/src/message.jl:93
+  similar(!Matched::Array{T,1}, ::Type) where T at array.jl:315
+  similar(!Matched::Array{T,2}, ::Type) where T at array.jl:316
+  ...
+
+Stacktrace:
+ [1] #accumulate#593(::Nothing, ::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}, ::typeof(accumulate), ::Function, ::Tuple{Int64,Int64,Int64}) at ./accumulate.jl:241
+ [2] accumulate(::Function, ::Tuple{Int64,Int64,Int64}) at ./accumulate.jl:239
+ [3] top-level scope at In[19]:1
+\end{verbatim}
 \end{document}

@@ -11,7 +11,7 @@
 #+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
 #+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
 #+LATEX_HEADER: \newcommand{\lv}[0]{\mathbf{l}}
-#+LATEX_HEADER: \newcommand*\lgrad[1]{\bar{#1}}
+#+LATEX_HEADER: \newcommand*\lgrad[1]{\overline{#1}}
 
 have a model. have data. fit model to data.
 
