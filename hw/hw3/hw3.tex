@@ -1,10 +1,9 @@
-% Created 2019-12-04 Wed 04:53
+% Created 2019-12-04 Wed 05:37
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
-\usepackage{grffile}
 \usepackage{longtable}
 \usepackage{wrapfig}
 \usepackage{rotating}
@@ -62,6 +61,7 @@
 \addtolength{\textheight}{1.2in}
 \usemintedstyle{manni}
 \fi
+\graphicspath{/home/radical/dev/6.338/hw/hw3/}
 \author{James Gilles}
 \date{03 December 2019}
 \title{18.337 Homework 3}
@@ -85,7 +85,7 @@ using Random
 \end{minted}
 
 \section{Problem 1}
-\label{sec:org2855902}
+\label{sec:orgc27cdc4}
 We want to show
 $$\B_f^\xv(1) = \transpose{(\nabla f(\xv))}$$
 The pullback \(\B\) is defined:
@@ -101,7 +101,7 @@ But this is just the jacobian \(J_f=\tderiv{f}{\xv}\), which is
 $$\tderiv{f}{\xv}=\transpose{(\nabla f(\xv))}$$
 by the definition of the jacobian. \qed
 \section{Problem 2}
-\label{sec:org8da53b9}
+\label{sec:orgcecf3b6}
 We have $$\NN(u; W_i, b_i) = W_2 \tanh.(W_1 u + b_1) + b_2$$
 In julia:
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
@@ -218,7 +218,7 @@ allclose(a, b) = all(abs.(a .- b) .< .001)
 It works!
 
 \section{Problem 3}
-\label{sec:org3802e63}
+\label{sec:orge7d5bf2}
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
 function sensitivities(ts, u̅s, u0, ps)
     # takes: parameters, sample times, sample output sensitivities, starting state
@@ -251,16 +251,22 @@ function sensitivities(ts, u̅s, u0, ps)
     uu̅p̅1 = pack(u1, u̅1, p̅1)
 
     # stopping points
-    condition(u, t, int) = t in keys(t_to_u̅)
+    function condition(u, t, int)
+        t in keys(t_to_u̅)
+    end
     function effect!(int)
         int.u[1:2] = forward_sol(int.t)
-        int.u[3:4] = t_to_u̅[int.t]
+        #int.u[3:4] = t_to_u̅[int.t]
+        # 2(u(t_i) - data(t_i))
+        int.u[3:4] += t_to_u̅[int.t]
+        #print("effecting")
+        ()
     end
     cb = DiscreteCallback(condition, effect!)
 
     # solve backwards problem
     backward_prob = ODEProblem(aug_f, uu̅p̅1, (t1, t0), ps)
-    backward_sol = solve(backward_prob, Tsit5(), callback=cb, tstop=ts)
+    backward_sol = solve(backward_prob, Tsit5(), callback=cb, tstops=ts)
 
     # pack up results
     uu̅p̅0 = backward_sol(t0)
@@ -302,11 +308,11 @@ u0 = [1.0, 1.0]
 ps0 = [W1, W2, b1, b2]
 t0 = 0.0
 t1 = 1.0
-ts = t0:0.1:t1
+ts = t0:1.0:t1
 \end{minted}
 
 \begin{verbatim}
-0.0:0.1:1.0
+0.0:1.0:1.0
 \end{verbatim}
 
 
@@ -318,10 +324,11 @@ png(plot(sol, dpi=200), "plots/basic.png")
 \end{minted}
 
 \begin{center}
-\includegraphics[width=.9\linewidth]{plots/basic.png}
+\includegraphics[width=.9\linewidth]{./plots/basic.png}
 \end{center}
 
-Now, let's use ForwardDiff to verify our results:
+Now, let's use ForwardDiff to verify our results (for a single data point,
+since \texttt{ts} is set to have two entries)
 
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
 function full(x)
@@ -345,7 +352,7 @@ p̅0 = pack(p̅s0...)
 It works!!
 
 \section{Problem 4}
-\label{sec:org2d884b3}
+\label{sec:org5339d20}
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
 loss(us_c_, us_) = sum((us_c_ - us_).^2)
 loss_pullback(l̅, us_c, us) = l̅ * -2.0 .* (us_c - us)
@@ -365,7 +372,7 @@ us_c_ = hcat(us_c...)'
 
 ps = deepcopy(ps0)
 
-function train(ps; steps=500, α=.0001, snapshot_every=5,
+function train(ps; steps=500, α=.002, snapshot_every=3,
                slow_every=200)
     losses = Float64[]
     snapshots = Any[]
@@ -401,7 +408,7 @@ end
 
 ps, losses, snapshots = train(ps)
 nn_sol = evaluate(ts, u0, ps)
-png(plot(losses, dpi=200, xlabel="iteration", ylabel="loss"), "plots/loss.png")
+png(plot(losses, dpi=200, xlabel="iteration", ylabel="loss", yscale=:log10), "plots/loss.png")
 \end{minted}
 
 \begin{center}
@@ -451,4 +458,12 @@ function timeplot(snapshots, ts, u0, us_c)
 end
 timeplot(snapshots, ts, u0, us_c)
 \end{minted}
+
+\begin{verbatim}
+┌ Info: Saved animation to
+│   fn = /home/radical/dev/6.338/hw/hw3/tmp.gif
+└ @ Plots /home/radical/.julia/packages/Plots/h3o4c/src/animation.jl:95
+\end{verbatim}
+
+To see this animation, go to: \url{https://i.imgur.com/FuarJak.gifv}
 \end{document}

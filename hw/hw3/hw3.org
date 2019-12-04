@@ -55,6 +55,8 @@
 #+LATEX_HEADER: \usemintedstyle{manni}
 #+LATEX_HEADER: \fi
 
+(NOTE: you have to remove this line + the usepackage{grffile} from the latex header or else the file won't compile!)
+
 #+BEGIN_SRC julia :session jl :async yes :exports both
 using Plots
 using ForwardDiff
@@ -223,16 +225,22 @@ function sensitivities(ts, u̅s, u0, ps)
     uu̅p̅1 = pack(u1, u̅1, p̅1)
 
     # stopping points
-    condition(u, t, int) = t in keys(t_to_u̅)
+    function condition(u, t, int)
+        t in keys(t_to_u̅)
+    end
     function effect!(int)
         int.u[1:2] = forward_sol(int.t)
-        int.u[3:4] = t_to_u̅[int.t]
+        #int.u[3:4] = t_to_u̅[int.t]
+        # 2(u(t_i) - data(t_i))
+        int.u[3:4] += t_to_u̅[int.t]
+        #print("effecting")
+        ()
     end
     cb = DiscreteCallback(condition, effect!)
 
     # solve backwards problem
     backward_prob = ODEProblem(aug_f, uu̅p̅1, (t1, t0), ps)
-    backward_sol = solve(backward_prob, Tsit5(), callback=cb, tstop=ts)
+    backward_sol = solve(backward_prob, Tsit5(), callback=cb, tstops=ts)
 
     # pack up results
     uu̅p̅0 = backward_sol(t0)
@@ -270,11 +278,11 @@ u0 = [1.0, 1.0]
 ps0 = [W1, W2, b1, b2]
 t0 = 0.0
 t1 = 1.0
-ts = t0:0.1:t1
+ts = t0:1.0:t1
 #+END_SRC
 
 #+RESULTS:
-: 0.0:0.1:1.0
+: 0.0:1.0:1.0
 
 Let's plot that:
 #+BEGIN_SRC julia :session jl :async yes :exports both
@@ -287,7 +295,8 @@ png(plot(sol, dpi=200), "plots/basic.png")
 
 [[./plots/basic.png]]
 
-Now, let's use ForwardDiff to verify our results:
+Now, let's use ForwardDiff to verify our results (for a single data point,
+since ~ts~ is set to have two entries)
 
 #+BEGIN_SRC julia :session jl :async yes :exports both
 function full(x)
@@ -313,7 +322,7 @@ p̅0 = pack(p̅s0...)
 It works!!
 
 * Problem 4
-#+BEGIN_SRC julia :session jl :async yes :exports both
+#+BEGIN_SRC julia :session jl :async yes :exports both :noeval
 loss(us_c_, us_) = sum((us_c_ - us_).^2)
 loss_pullback(l̅, us_c, us) = l̅ * -2.0 .* (us_c - us)
 
@@ -332,7 +341,7 @@ us_c_ = hcat(us_c...)'
 
 ps = deepcopy(ps0)
 
-function train(ps; steps=500, α=.0001, snapshot_every=5,
+function train(ps; steps=500, α=.002, snapshot_every=3,
                slow_every=200)
     losses = Float64[]
     snapshots = Any[]
@@ -368,14 +377,14 @@ end
 
 ps, losses, snapshots = train(ps)
 nn_sol = evaluate(ts, u0, ps)
-png(plot(losses, dpi=200, xlabel="iteration", ylabel="loss"), "plots/loss.png")
+png(plot(losses, dpi=200, xlabel="iteration", ylabel="loss", yscale=:log10), "plots/loss.png")
 #+END_SRC
 
 #+RESULTS:
 
 [[./plots/loss.png]]
 
-#+BEGIN_SRC julia :session jl :async yes :exports both
+#+BEGIN_SRC julia :session jl :async yes :exports both :noeval
 p = plot(nn_sol, format=:png, dpi=200, legend=false)
 plot!(p, target_sol)
 
@@ -419,3 +428,11 @@ end
 timeplot(snapshots, ts, u0, us_c)
 #+END_SRC
 
+#+RESULTS:
+:RESULTS:
+: ┌ Info: Saved animation to
+: │   fn = /home/radical/dev/6.338/hw/hw3/tmp.gif
+: └ @ Plots /home/radical/.julia/packages/Plots/h3o4c/src/animation.jl:95
+:END:
+
+To see this animation, go to: https://i.imgur.com/FuarJak.gifv
