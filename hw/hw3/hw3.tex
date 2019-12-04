@@ -1,4 +1,4 @@
-% Created 2019-12-04 Wed 02:38
+% Created 2019-12-04 Wed 03:08
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -84,7 +84,7 @@ using OrdinaryDiffEq
 \end{minted}
 
 \section{Problem 1}
-\label{sec:orgd95268d}
+\label{sec:org8290364}
 We want to show
 $$\B_f^\xv(1) = \transpose{(\nabla f(\xv))}$$
 The pullback \(\B\) is defined:
@@ -100,7 +100,7 @@ But this is just the jacobian \(J_f=\tderiv{f}{\xv}\), which is
 $$\tderiv{f}{\xv}=\transpose{(\nabla f(\xv))}$$
 by the definition of the jacobian. \qed
 \section{Problem 2}
-\label{sec:org4c14672}
+\label{sec:orgd8c4808}
 We have $$\NN(u; W_i, b_i) = W_2 \tanh.(W_1 u + b_1) + b_2$$
 In julia:
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
@@ -115,8 +115,8 @@ nn([0.5, 0.5], W1, W2, b1, b2)
 
 \begin{verbatim}
 2-element Array{Float64,1}:
- -4.2045369953645615
- -3.422587885695707 
+ -3.320195675774861
+  7.549796941052088
 \end{verbatim}
 
 
@@ -215,9 +215,7 @@ allclose(a, b) = all(abs.(a .- b) .< .000001)
 It works!
 
 \section{Problem 3}
-\label{sec:org189b1b5}
-This is fairly straightforward to implement.
-
+\label{sec:org32e03c9}
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
 function sensitivities(ts, u̅s, u0, ps)
     # takes: parameters, sample times, sample output sensitivities, starting state
@@ -274,9 +272,8 @@ sensitivities (generic function with 1 method)
 Now, let's verify that by combining ForwardDiff and OrdinaryDiffEqs.
 
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
-function result(ts, u0, ps)
+function evaluate(ts, u0, ps)
     @assert issorted(ts)
-    @assert size(ts) == size(u̅s)
 
     t0 = min(ts...)
     t1 = max(ts...)
@@ -285,71 +282,37 @@ function result(ts, u0, ps)
     forward_prob = ODEProblem(f, u0, (t0, t1), ps)
     forward_sol = solve(forward_prob, Tsit5())
 
-    forward_sol(t1)
+    forward_sol
 end
 
 u0 = [1.0, 1.0]
-ps = [W1, W2, b1, b2]
-ts = 0.0:0.1
+ps0 = [W1, W2, b1, b2]
+t0 = 0.0
+t1 = 1.0
+ts = t0:0.1:t1
 
 function full(x)
-    println(typeof(x))
-    u0, ps = unpack(x, 2, param_count)
-    ps = unpack(ps, (size(w) for w in ps)...)
-    fake_loss(result(ts, u0, ps))
+    u0, p = unpack(x, 2, param_count)
+    ps = unpack(p, (size(w) for w in ps0)...)
+    sol = evaluate(ts, u0, ps)
+    fake_loss(sol(t1))
 end
 
-correct = ForwardDiff.gradient(full, pack(u0, ps...))
+correct = ForwardDiff.gradient(full, pack(u0, ps0...))
+u̅0_c, p̅0_c = unpack(correct, 2, param_count)
+p̅s0_c = unpack(p̅0_c, (size(w) for w in ps0)...)
 
+u̅s = [fake_loss_pullback(1.0) for t in ts]
+u̅0, p̅s0 = sensitivities(ts, u̅s, u0, ps0)
+
+()
 \end{minted}
-
-\begin{verbatim}
-Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1}
-\end{verbatim}
-
-\begin{verbatim}
-MethodError: no method matching *()
-Closest candidates are:
-  *(!Matched::Bool, !Matched::Complex{Bool}) at complex.jl:282
-  *(!Matched::Bool, !Matched::Bool) at bool.jl:98
-  *(!Matched::Bool, !Matched::T<:AbstractFloat) where T<:AbstractFloat at bool.jl:110
-  ...
-
-Stacktrace:
- [1] (::getfield(Main, Symbol("##49#52")))(::Tuple{}) at ./none:0
- [2] iterate at ./generator.jl:47 [inlined]
- [3] collect(::Base.Generator{NTuple{252,Tuple{}},getfield(Main, Symbol("##49#52"))}) at ./array.jl:606
- [4] unpack(::SubArray{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1,Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1},Tuple{UnitRange{Int64}},true}, ::Tuple{}, ::Vararg{Tuple{},N} where N) at ./In[13]:4
- [5] full(::Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1}) at ./In[17]:22
- [6] chunk_mode_gradient(::typeof(full), ::Array{Float64,1}, ::ForwardDiff.GradientConfig{ForwardDiff.Tag{typeof(full),Float64},Float64,12,Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1}}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/gradient.jl:140
- [7] gradient(::Function, ::Array{Float64,1}, ::ForwardDiff.GradientConfig{ForwardDiff.Tag{typeof(full),Float64},Float64,12,Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1}}, ::Val{true}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/gradient.jl:19
- [8] gradient(::Function, ::Array{Float64,1}, ::ForwardDiff.GradientConfig{ForwardDiff.Tag{typeof(full),Float64},Float64,12,Array{ForwardDiff.Dual{ForwardDiff.Tag{typeof(full),Float64},Float64,12},1}}) at /home/radical/.julia/packages/ForwardDiff/N0wMF/src/gradient.jl:15 (repeats 2 times)
- [9] top-level scope at In[17]:25
-\end{verbatim}
 
 \begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
-?accumulate
+0.
 \end{minted}
 
 \begin{verbatim}
-search: accumulate accumulate!
-\end{verbatim}
-
-\begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true]{julia}
-accumulate(+, (1,2,3))
-\end{minted}
-
-\begin{verbatim}
-MethodError: no method matching similar(::Tuple{Int64,Int64,Int64}, ::Type{Int64})
-Closest candidates are:
-  similar(!Matched::ZMQ.Message, ::Type{T}, !Matched::Tuple{Vararg{Int64,N}} where N) where T at /home/radical/.julia/packages/ZMQ/ABGOx/src/message.jl:93
-  similar(!Matched::Array{T,1}, ::Type) where T at array.jl:315
-  similar(!Matched::Array{T,2}, ::Type) where T at array.jl:316
-  ...
-
-Stacktrace:
- [1] #accumulate#593(::Nothing, ::Base.Iterators.Pairs{Union{},Union{},Tuple{},NamedTuple{(),Tuple{}}}, ::typeof(accumulate), ::Function, ::Tuple{Int64,Int64,Int64}) at ./accumulate.jl:241
- [2] accumulate(::Function, ::Tuple{Int64,Int64,Int64}) at ./accumulate.jl:239
- [3] top-level scope at In[19]:1
+0.0
 \end{verbatim}
 \end{document}

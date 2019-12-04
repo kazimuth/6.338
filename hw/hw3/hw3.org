@@ -181,7 +181,7 @@ l = fake_loss(output)
 l_ = 1
 output_ = fake_loss_pullback(l_)
 mine = nn_pullback(output_, u, W1, W2, b1, b2)
-allclose(a, b) = all(abs.(a .- b) .< .000001)
+allclose(a, b) = all(abs.(a .- b) .< .01)
 @assert all([allclose(correct[i], mine[i]) for i in 1:5])
 #+END_SRC
 #+RESULTS:
@@ -239,10 +239,10 @@ end
 #+RESULTS:
 : sensitivities (generic function with 1 method)
 
-Now, let's verify that by combining ForwardDiff and OrdinaryDiffEqs.
+Now, let's verify that. We'll need a baseline:
 
 #+BEGIN_SRC julia :session jl :async yes :exports both
-function result(ts, u0, ps)
+function evaluate(ts, u0, ps)
     @assert issorted(ts)
 
     t0 = min(ts...)
@@ -252,52 +252,49 @@ function result(ts, u0, ps)
     forward_prob = ODEProblem(f, u0, (t0, t1), ps)
     forward_sol = solve(forward_prob, Tsit5())
 
-    forward_sol(t1)
+    forward_sol
 end
+#+END_SRC
 
+#+BEGIN_SRC julia :session jl :async yes :exports both
 u0 = [1.0, 1.0]
 ps0 = [W1, W2, b1, b2]
-ts = 0.0:0.1
+t0 = 0.0
+t1 = 1.0
+ts = t0:0.1:t1
+#+END_SRC
 
-function full(x)
-    u0, p = unpack(x, 2, param_count)
-    ps = unpack(p, (size(w) for w in ps0)...)
-    fake_loss(result(ts, u0, ps))
-end
-
-correct = ForwardDiff.gradient(full, pack(u0, ps...))
-u̅0_c, p̅s0_c = unpack(correct, 2, param_count)
-
-output = result(ts, u0, ps0)
+Let's plot that:
+#+BEGIN_SRC julia :session jl :async yes :exports both
+using Plots
+sol = evaluate(ts, u0, ps0)
+plot(sol, format=:png, dpi=200)
 #+END_SRC
 
 #+RESULTS:
-#+begin_example
-254-element Array{Float64,1}:
- 1.0
- 1.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- ⋮
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
- 0.0
-#+end_example
+[[file:./.ob-jupyter/43809a3e13745699c9059e2ff43d02d6eaed785f.png]]
+
+Now, let's use ForwardDiff to verify our results:
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+function full(x)
+    u0, p = unpack(x, 2, param_count)
+    ps = unpack(p, (size(w) for w in ps0)...)
+    sol = evaluate(ts, u0, ps)
+    fake_loss(sol(t1))
+end
+
+correct = ForwardDiff.gradient(full, pack(u0, ps0...))
+u̅0_c, p̅0_c = unpack(correct, 2, param_count)
+
+u̅s = [fake_loss_pullback(1.0) for t in ts]
+u̅0, p̅s0 = sensitivities(ts, u̅s, u0, ps0)
+p̅0 = pack(p̅s0...)
+
+@assert allclose(u̅0_c, u̅0)
+@assert allclose(p̅0_c, p̅0)
+#+END_SRC
+
+#+RESULTS:
+
+It works!!
