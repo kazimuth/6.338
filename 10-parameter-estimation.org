@@ -103,7 +103,7 @@ this problem has many different names: *parameter estimation*, *inverse problems
    Core insight: if a value is used in multiple places, the sensitivity of the loss is the *sum* of the sensitivities coming from each use.
 
    Imagine a knob controlling both the x and y parameters of some point. Say the loss is the distance from the origin.
-   Turning the knob by 1 results in a distance change of $2^{1/2}$.
+   Turning the knob by 1 results in a distance change of $\sqrt{2}$.
    Partial_x of sqrt(x^2 + y^2) is x/(sqrt(x^2 + y^2))
    Partial_y of sqrt(x^2 + y^2) is y/(sqrt(x^2 + y^2))
    Set y=x, sum these, we get partial_x = 2x/(sqrt(2 x^2)) = 2/sqrt(2) = sqrt(2), as expected.
@@ -147,6 +147,8 @@ this problem has many different names: *parameter estimation*, *inverse problems
 
    - Element-wise operations give element-wise multiplication.
 
+   $y = f(x) = Ax \implies \B^x_f(\lgrad{y}) = \lgrad{x} = \lgrad{y} A^\top, \B^A_f(\lgrad{y}) = \lgrad{A} = x^\top \lgrad{y}$
+
 ** the jacobian & jvps / vjps
    Define program output $\lv$ to be a vector; function is a composition of $\fv_l \cdot \fv_{1-1} \cdot ... \cdot \fv_1$.
 
@@ -181,7 +183,7 @@ this problem has many different names: *parameter estimation*, *inverse problems
     \dfrac{\partial f_m}{\partial x_1} & \cdots & \dfrac{\partial f_m}{\partial x_n} \end{bmatrix}.
    \end{equation*}
 
-   So columns are particular outputs, rows are particular inputs.
+   So columns are particular inputs, rows are particular outputs.
 
 ** custom pullbacks
 
