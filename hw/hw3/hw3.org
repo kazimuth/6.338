@@ -59,6 +59,7 @@
 using Plots
 using ForwardDiff
 using OrdinaryDiffEq
+using Random
 #+END_SRC
 #+RESULTS:
 
@@ -82,18 +83,20 @@ We have $$\NN(u; W_i, b_i) = W_2 \tanh.(W_1 u + b_1) + b_2$$
 In julia:
 #+BEGIN_SRC julia :session jl :async yes :exports both
 nn(u, W1, W2, b1, b2) = W2*tanh.(W1 * u + b1) + b2
+
+Random.seed!(9)
 W1 = randn(50,2)
 W2 = randn(2,50)
-b1 = randn(50)
-b2 = randn(2)
+b1 = zeros(50)
+b2 = zeros(2)
 const param_count = sum(length(w) for w in [W1, W2, b1, b2])
 nn([0.5, 0.5], W1, W2, b1, b2)
 #+END_SRC
 
 #+RESULTS:
 : 2-element Array{Float64,1}:
-:  5.315799508301512
-:  6.313222319455102
+:  0.9054022475030874
+:  1.156495898004884
 
 Straightforward enough.
 Now we need to compute the pullback for each parameter. Let's do that by breaking down the network into a series of steps,
@@ -181,7 +184,7 @@ l = fake_loss(output)
 l_ = 1
 output_ = fake_loss_pullback(l_)
 mine = nn_pullback(output_, u, W1, W2, b1, b2)
-allclose(a, b) = all(abs.(a .- b) .< .01)
+allclose(a, b) = all(abs.(a .- b) .< .001)
 @assert all([allclose(correct[i], mine[i]) for i in 1:5])
 #+END_SRC
 #+RESULTS:
@@ -221,7 +224,10 @@ function sensitivities(ts, u̅s, u0, ps)
 
     # stopping points
     condition(u, t, int) = t in keys(t_to_u̅)
-    effect!(int) = int.u[3:4] = t_to_u̅[int.t]
+    function effect!(int)
+        int.u[1:2] = forward_sol(int.t)
+        int.u[3:4] = t_to_u̅[int.t]
+    end
     cb = DiscreteCallback(condition, effect!)
 
     # solve backwards problem
@@ -242,7 +248,7 @@ end
 Now, let's verify that. We'll need a baseline:
 
 #+BEGIN_SRC julia :session jl :async yes :exports both
-function evaluate(ts, u0, ps)
+function evaluate(ts, u0, ps, saveat=ts)
     @assert issorted(ts)
 
     t0 = min(ts...)
@@ -256,6 +262,9 @@ function evaluate(ts, u0, ps)
 end
 #+END_SRC
 
+#+RESULTS:
+: evaluate (generic function with 2 methods)
+
 #+BEGIN_SRC julia :session jl :async yes :exports both
 u0 = [1.0, 1.0]
 ps0 = [W1, W2, b1, b2]
@@ -264,15 +273,19 @@ t1 = 1.0
 ts = t0:0.1:t1
 #+END_SRC
 
+#+RESULTS:
+: 0.0:0.1:1.0
+
 Let's plot that:
 #+BEGIN_SRC julia :session jl :async yes :exports both
 using Plots
 sol = evaluate(ts, u0, ps0)
-plot(sol, format=:png, dpi=200)
+png(plot(sol, dpi=200), "plots/basic.png")
 #+END_SRC
 
 #+RESULTS:
-[[file:./.ob-jupyter/43809a3e13745699c9059e2ff43d02d6eaed785f.png]]
+
+[[./plots/basic.png]]
 
 Now, let's use ForwardDiff to verify our results:
 
@@ -298,3 +311,111 @@ p̅0 = pack(p̅s0...)
 #+RESULTS:
 
 It works!!
+
+* Problem 4
+#+BEGIN_SRC julia :session jl :async yes :exports both
+loss(us_c_, us_) = sum((us_c_ - us_).^2)
+loss_pullback(l̅, us_c, us) = l̅ * -2.0 .* (us_c - us)
+
+u0 = [2.0, 0.0]
+ps0 = [W1, W2, b1, b2]
+t0 = 0.0
+t1 = 1.0
+ts = t0:0.1:t1
+
+A = [-0.1 2.0; -2.0 -0.1]
+
+target_problem = ODEProblem((u, p, t) -> A * u, u0, (t0, t1))
+target_sol = solve(target_problem, Tsit5(), saveat=ts)
+us_c = target_sol.(ts)
+us_c_ = hcat(us_c...)'
+
+ps = deepcopy(ps0)
+
+function train(ps; steps=500, α=.0001, snapshot_every=5,
+               slow_every=200)
+    losses = Float64[]
+    snapshots = Any[]
+
+    for i in 1:steps
+        if (i-1) % snapshot_every == 0
+            push!(snapshots, deepcopy(ps))
+        end
+        if i % slow_every == 0
+            α *= .5
+        end
+
+        # we do the forward pass twice here to avoid interpolating between points
+        # when computing the gradient
+        nn_sol = evaluate(ts, u0, ps)
+        us = nn_sol.(ts)
+        us_ = hcat(us...)'
+
+        l = loss(us_c_, us_)
+        push!(losses, l)
+
+        l̅ = 1.0
+        u̅s = loss_pullback(l̅, us_c, us)
+
+        _, p̅s = sensitivities(ts, u̅s, u0, ps)
+
+        ps -= α * p̅s
+
+    end
+
+    ps, losses, snapshots
+end
+
+ps, losses, snapshots = train(ps)
+nn_sol = evaluate(ts, u0, ps)
+png(plot(losses, dpi=200, xlabel="iteration", ylabel="loss"), "plots/loss.png")
+#+END_SRC
+
+#+RESULTS:
+
+[[./plots/loss.png]]
+
+#+BEGIN_SRC julia :session jl :async yes :exports both
+p = plot(nn_sol, format=:png, dpi=200, legend=false)
+plot!(p, target_sol)
+
+us = nn_sol.(ts)
+l̅ = 1.0
+u̅s = loss_pullback(l̅, us_c, us)
+
+for i in 1:length(ts)
+    t = ts[i]
+    plot!(p, Shape([(t, us[i][1]), (t, us[i][1] - .1 * u̅s[i][1])]))
+    plot!(p, Shape([(t, us[i][2]), (t, us[i][2] - .1 * u̅s[i][2])]))
+end
+
+png(p, "plots/fit.png")
+#+END_SRC
+
+#+RESULTS:
+
+[[./plots/fit.png]]
+
+#+BEGIN_SRC julia :session jl :async yes :exports both :noeval
+function timeplot(snapshots, ts, u0, us_c)
+    @gif for ps_ in snapshots
+        nn_sol = evaluate(ts, u0, ps_)
+        p = plot(nn_sol, ylim=(-2.2, 2.2), legend=false)
+        plot!(p, target_sol)
+
+        us = nn_sol.(ts)
+        l̅ = 1.0
+        u̅s = loss_pullback(l̅, us_c, us)
+
+        for i in 1:length(ts)
+            t = ts[i]
+            plot!(p, Shape([(t, us[i][1]), (t, us[i][1] - .1 * u̅s[i][1])]))
+            plot!(p, Shape([(t, us[i][2]), (t, us[i][2] - .1 * u̅s[i][2])]))
+        end
+
+        p
+    end
+end
+timeplot(snapshots, ts, u0, us_c)
+#+END_SRC
+
