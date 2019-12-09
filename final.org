@@ -1,0 +1,223 @@
+#+TITLE: 6.338 final project notes
+#+AUTHOR: james gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 08 december 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+* gcloud instance
+  104.197.28.58
+*** Create instance
+    In gcloud: new compute node, ubuntu 19.10
+
+    add ~Network Tags~: jupyter, allow-jupyter, allow-tensorboard, allow-8889, allow-mosh, allow-dask
+
+*** Connect
+#+BEGIN_SRC bash :noeval
+env TERM=xterm-256color ssh -i ~/.ssh/google_compute_engine radical@34.68.107.38
+#+END_SRC
+
+*** Initial setup
+#+BEGIN_SRC bash :noeval
+# debian deps
+sudo apt-get update && sudo apt-get upgrade -y
+sudo apt-get install git vim wget tmux -y
+
+# config files (on local)
+# cd adv_lth
+scp -i ~/.ssh/google_compute_engine -r cloud/supervisor/* cloud/supervisor/.* radical@34.68.107.38:/home/radical/
+
+# add sources
+
+sudo su -
+cat >/etc/apt/sources.list
+#~~~~
+deb http://deb.debian.org/debian/ stretch main contrib non-free
+deb-src http://deb.debian.org/debian/ stretch main contrib non-free
+deb http://security.debian.org/ stretch/updates main contrib non-free
+deb-src http://security.debian.org/ stretch/updates main contrib non-free
+deb http://deb.debian.org/debian/ stretch-updates main contrib non-free
+deb-src http://deb.debian.org/debian/ stretch-updates main contrib non-free
+deb http://httpredir.debian.org/debian stretch-backports main contrib non-free
+deb-src http://httpredir.debian.org/debian stretch-backports main contrib non-free
+#~~~~
+logout
+
+sudo apt update
+
+# check gpu
+sudo apt install nvidia-detect
+nvidia-detect
+
+# install drivers
+sudo apt install linux-headers-$(uname -r|sed 's/[^-]*-[^-]*-//')
+sudo apt install -t stretch-backports nvidia-driver nvidia-smi nvidia-cuda-toolkit
+
+# reboot
+sudo reboot now
+
+# ... reconnect ...
+# check install
+nvidia-detect
+nvidia-smi
+
+# https://xcat-docs.readthedocs.io/en/stable/advanced/gpu/nvidia/verify_cuda_install.html
+
+# the repo
+git clone git@github.com:kazimuth/6.338 6.338
+
+# anaconda
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+
+# our env
+conda create -p ./julia
+conda activate ./julia
+
+# jupyterlab + cuda + julia
+conda install cudatoolkit
+conda install -c conda-forge jupyterlab julia
+
+# in julia:
+julia
+]
+add CUDAdrv CUDAnative CuArrays IJulia Flux Plots
+test CuArrays
+
+# certificates for jupyterlab
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout mykey.key -out mycert.pem
+#+END_SRC
+
+*** Jupyter boot
+    Note: jupyterlab configuration is in [adv_lth/]cloud/supervisor/.jupyter/jupyter_notebook_config.py
+    see https://jupyter-notebook.readthedocs.io/en/stable/public_server.html#running-a-public-notebook-server
+
+#+BEGIN_SRC bash :noeval
+tmux # or tmux a
+conda activate ./env
+jupyter lab
+#+END_SRC
+
+    open https://34.68.107.38:8888
+    note: jupyterlab password is "grumpiness ampersand"
+*** Julia settings
+#+BEGIN_SRC bash :noeval
+. /data/scratch/jhgilles/miniconda3/bin/activate
+conda activate /data/scratch/jhgilles/julia
+export JUPYTER_CONFIG_DIR=/data/scratch/jhgilles/.jupyter
+#export CLOUDSDK_CONFIG=/data/scratch/jhgilles/.gcloud
+#export GOOGLE_APPLICATION_CREDENTIALS=/data/scratch/jhgilles/adv-lth/cloud/secrets/service-account-private-key.json
+#export PYTHONPATH=/data/scratch/jhgilles/adv-lth/tinylth/gpu-src:/data/scratch/jhgilles/adv-lth/tinylth/lottery:$PYTHONPATH
+export JULIA_DEPOT_PATH=/data/scratch/jhgilles/.julia
+#+END_SRC
+**** old env settings
+ignore the following
+#+BEGIN_SRC
+name: null
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=main
+  - arpack=3.6.3=blas_openblash6d6ea35_1002
+  - attrs=19.3.0=py_0
+  - backcall=0.1.0=py_0
+  - blas=1.1=openblas
+  - bleach=3.1.0=py_0
+  - ca-certificates=2019.11.28=hecc5488_0
+  - certifi=2019.11.28=py38_0
+  - cudatoolkit=10.1.243=h6bb024c_0
+  - curl=7.65.3=hf8cf82a_0
+  - decorator=4.4.1=py_0
+  - defusedxml=0.6.0=py_0
+  - entrypoints=0.3=py38_1000
+  - fftw=3.3.8=nompi_h7f3a6c3_1110
+  - gmp=6.1.2=hf484d3e_1000
+  - importlib_metadata=1.2.0=py38_0
+  - ipykernel=5.1.3=py38h5ca1d4c_0
+  - ipython=7.10.1=py38h5ca1d4c_0
+  - ipython_genutils=0.2.0=py_1
+  - jedi=0.15.1=py38_0
+  - jinja2=2.10.3=py_0
+  - json5=0.8.5=py_0
+  - jsonschema=3.2.0=py38_0
+  - julia=1.0.3=blas_openblash12d65f3_2
+  - jupyter_client=5.3.3=py38_1
+  - jupyter_core=4.6.1=py38_0
+  - jupyterlab=1.2.3=py_0
+  - jupyterlab_server=1.0.6=py_0
+  - krb5=1.16.3=h05b26f9_1001
+  - ld_impl_linux-64=2.33.1=h53a641e_7
+  - libblas=3.8.0=11_openblas
+  - libcblas=3.8.0=11_openblas
+  - libcurl=7.65.3=hda55be3_0
+  - libedit=3.1.20170329=hf8c457e_1001
+  - libffi=3.2.1=he1b5a44_1006
+  - libgcc-ng=9.2.0=hdf63c60_0
+  - libgfortran-ng=7.3.0=hdf63c60_2
+  - libgit2=0.28.3=h241e3f0_0
+  - liblapack=3.8.0=11_openblas
+  - libopenblas=0.3.6=h5a2b251_2
+  - libsodium=1.0.17=h516909a_0
+  - libssh2=1.8.2=h22169c7_2
+  - libstdcxx-ng=9.2.0=hdf63c60_0
+  - markupsafe=1.1.1=py38h516909a_0
+  - metis=5.1.0=he1b5a44_1005
+  - mistune=0.8.4=py38h516909a_1000
+  - more-itertools=8.0.2=py_0
+  - mpfr=4.0.2=he80fd80_0
+  - nbconvert=5.6.1=py38_0
+  - nbformat=4.4.0=py_1
+  - ncurses=6.1=hf484d3e_1002
+  - notebook=6.0.1=py38_0
+  - openblas=0.3.3=h9ac9557_1001
+  - openlibm=0.5.4=h14c3975_1000
+  - openspecfun=0.5.3=hc99cbb1_1001
+  - openssl=1.1.1d=h516909a_0
+  - pandoc=2.8.1=0
+  - pandocfilters=1.4.2=py_1
+  - parso=0.5.1=py_0
+  - pcre2=10.23=2
+  - pexpect=4.7.0=py38_0
+  - pickleshare=0.7.5=py38_1000
+  - pip=19.3.1=py38_0
+  - prometheus_client=0.7.1=py_0
+  - prompt_toolkit=3.0.2=py_0
+  - ptyprocess=0.6.0=py_1001
+  - pygments=2.5.2=py_0
+  - pyrsistent=0.15.6=py38h516909a_0
+  - python=3.8.0=h357f687_5
+  - python-dateutil=2.8.1=py_0
+  - pyzmq=18.1.1=py38h1768529_0
+  - readline=8.0=hf8c457e_0
+  - send2trash=1.5.0=py_0
+  - setuptools=42.0.2=py38_0
+  - six=1.13.0=py38_0
+  - sqlite=3.30.1=hcee41ef_0
+  - suitesparse=4.5.6=blas_openblash17e8c26_1201
+  - tbb=2019.9=hc9558a2_1
+  - terminado=0.8.3=py38_0
+  - testpath=0.4.4=py_0
+  - tk=8.6.10=hed695b0_0
+  - tornado=6.0.3=py38h516909a_0
+  - traitlets=4.3.3=py38_0
+  - wcwidth=0.1.7=py_1
+  - webencodings=0.5.1=py_1
+  - wheel=0.33.6=py38_0
+  - xz=5.2.4=h14c3975_1001
+  - zeromq=4.3.2=he1b5a44_2
+  - zipp=0.6.0=py_0
+  - zlib=1.2.11=h516909a_1006
+#+END_SRC
+
+* TODO get cuda working on instance
+  https://docs.anaconda.com/anaconda/user-guide/tasks/gpu-packages/
+* TODO extract definitions from paper
+* TODO find old python code
+* TODO translate existing python code
+* TODO establish baselines (cpu / gpu)
+* TODO simple quantization
+* TODO simple CPU convolution
+* TODO simple GPU convolution
+* TODO fast quantization
+* TODO fast convolvution (copy from TVM setup)
