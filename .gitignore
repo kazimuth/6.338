@@ -8,3 +8,4 @@
 **/ltximg/*
 **/.ob-jupyter/*
 .ipynb_checkpoints
+*.bson
