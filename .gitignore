@@ -9,3 +9,5 @@
 **/.ob-jupyter/*
 .ipynb_checkpoints
 *.bson
+*nvprof*
+*nsight*
