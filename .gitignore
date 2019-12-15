@@ -7,3 +7,7 @@
 **/*.zip
 **/ltximg/*
 **/.ob-jupyter/*
+.ipynb_checkpoints
+*.bson
+*nvprof*
+*nsight*
