@@ -280,7 +280,7 @@ function kernel_copy!(
         target :: CuDeviceArray{T},
         source :: CuDeviceArray{T, NS},
         source_slices :: NTuple{NS, UnitRange{I}}) :: Nothing where {T, NS, I <: Integer}
-    #@inbounds begin
+    @inbounds begin
         #source_view = view(source, source_slices...)
         i2s_source = Ind2Sub(source_slices)
         i2s_target = Ind2Sub((s -> 1:s).(size(target)))
@@ -307,7 +307,7 @@ function kernel_copy!(
             target[i2s_target[i]...] = source[i2s_source[i]...]
             i += tmax
         end
-    #end
+    end
 
     CUDAnative.sync_threads()
     
@@ -415,7 +415,7 @@ function qconv_32_kernel!(output, input, kernel, channels_in_kernel)
         
     #@cuprintf("%ld %ld %ld %ld\n", w₂, h₂, n, o)
 
-    #@inbounds begin
+    @inbounds begin
         for p in 1:P
             for x in 1:Hₖ
                 for y in 1:Wₖ
@@ -425,13 +425,13 @@ function qconv_32_kernel!(output, input, kernel, channels_in_kernel)
                     #input_value = input[p,w₁,h₁,n]
                     
                     input_value = input_cache[p, x, y]
-                    #kernel_value = kernel[p,x,y,o]
+                    kernel_value = kernel[p,x,y,o]
 
                     plus_1s += CUDAnative.popc(reinterpret(Int32, ~xor(input_value, kernel_value)))
                 end
             end
         end
-    #end
+    end
     
     #@cuprintf("%ld %ld %ld %ld: success!\n", w₂, h₂, n, o)
     
@@ -491,3 +491,26 @@ function test_eq_conv(input, kernel)
 end
 
 test_eq_conv(ones(Float32, 3, 3, 32, 1), ones(Float32, 3, 3, 32, 1))
+test_eq_conv(-ones(Float32, 3, 3, 32, 1), ones(Float32, 3, 3, 32, 1))
+test_eq_conv(randn(Float32, 3, 3, 32, 1), ones(Float32, 3, 3, 32, 1))
+test_eq_conv(ones(Float32, 3, 3, 32, 1), randn(Float32, 3, 3, 32, 1))
+test_eq_conv(randn(Float32, 3, 3, 32, 1), randn(Float32, 3, 3, 32, 1))
+test_eq_conv(randn(Float32, 3, 3, 32, 1), ones(Float32, 3, 3, 32, 1))
+test_eq_conv(randn(Float32, 3, 3, 32, 2), randn(Float32, 3, 3, 32, 1))
+test_eq_conv(randn(Float32, 3, 3, 32, 1), randn(Float32, 3, 3, 32, 2))
+test_eq_conv(randn(Float32, 5, 5, 32, 1), randn(Float32, 3, 3, 32, 1))
+test_eq_conv(randn(Float32, 5, 5, 32, 2), randn(Float32, 3, 3, 32, 2))
+test_eq_conv(randn(Float32, 10, 10, 128, 128), randn(Float32, 3, 3, 128, 128))
+
+input = CuArray(bit_to_float.(simplequant.(randn(Float32, 10, 10, 128, 128))))
+kernel = CuArray(bit_to_float.(simplequant.(randn(Float32, 3, 3, 128, 128))))
+
+input = CuArray(bit_to_float.(simplequant.(randn(Float32, 10, 10, 128, 128))))
+kernel = CuArray(bit_to_float.(simplequant.(randn(Float32, 3, 3, 128, 128))))
+input_quantized = quant_pack_WHCN_PWHN_32(input)
+kernel_quantized = quant_pack_WHCN_PWHN_32(kernel)
+
+using CUDAdrv
+
+CuArrays.@sync output = qconv_32(input_quantized, kernel_quantized)
+CUDAdrv.@profile CuArrays.@sync output = qconv_32(input_quantized, kernel_quantized)
