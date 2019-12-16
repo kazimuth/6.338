@@ -40,6 +40,8 @@
   nonlinear solve
   ODE solve
 
+** adjoint of linear solve
+
 ** ODE solve adjoint
 
    We want to take gradient of some cost function integrated throughout

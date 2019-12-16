@@ -11,3 +11,5 @@
 *.bson
 *nvprof*
 *nsight*
+julia-1.3.0*
+*nvvp*

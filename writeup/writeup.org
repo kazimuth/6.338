@@ -1,0 +1,335 @@
+#+TITLE: The Effect of Pruning on Adversarial Vulnerability
+#+AUTHOR: James Gilles
+#+EMAIL: jhgilles@mit.edu
+#+DATE: 01 November 2019
+#+OPTIONS: tex:t latex:t
+#+STARTUP: latexpreview
+
+#+LATEX_CLASS: article
+
+#+LATEX_HEADER: % Optional math commands from https://github.com/goodfeli/dlbook_notation.
+#+LATEX_HEADER: \usepackage{iclr2020_conference,times}
+#+LATEX_HEADER: \input{math_commands.tex}
+#+LATEX_HEADER: \usepackage{hyperref}
+#+LATEX_HEADER: \usepackage{url}
+
+#+LATEX_HEADER: \newcommand{\xv}[0]{\mathbf{x}}
+#+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
+#+LATEX_HEADER: \newcommand{\zv}[0]{\mathbf{z}}
+#+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
+#+LATEX_HEADER: \newcommand{\J}[0]{\mathbf{J}}
+#+LATEX_HEADER: \newcommand{\gv}[0]{\mathbf{g}}
+#+LATEX_HEADER: \newcommand{\hv}[0]{\mathbf{h}}
+#+LATEX_HEADER: \newcommand{\hxo}[0]{\mathbf{h}_0}
+
+#+LATEX_HEADER: \usepackage{mathtools}
+
+#+LATEX_HEADER:
+#+LATEX_HEADER: \DeclarePairedDelimiter\abs{\lvert}{\rvert}%
+#+LATEX_HEADER: \DeclarePairedDelimiter\norm{\lVert}{\rVert}%
+#+LATEX_HEADER:
+#+LATEX_HEADER: % Swap the definition of \abs* and \norm*, so that \abs
+#+LATEX_HEADER: % and \norm resizes the size of the brackets, and the
+#+LATEX_HEADER: % starred version does not.
+#+LATEX_HEADER: \makeatletter
+#+LATEX_HEADER: \let\oldabs\abs
+#+LATEX_HEADER: \def\abs{\@ifstar{\oldabs}{\oldabs*}}
+#+LATEX_HEADER: %
+#+LATEX_HEADER: \let\oldnorm\norm
+#+LATEX_HEADER: \def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
+#+LATEX_HEADER: \makeatother
+
+#+LATEX_HEADER: \newcommand*{\approxident}{%
+#+LATEX_HEADER: \mathrel{\vcenter{\offinterlineskip
+#+LATEX_HEADER: \hbox{$\sim$}\vskip-.35ex\hbox{$\sim$}\vskip}}}
+
+#+LATEX_HEADER: % uhhh
+#+LATEX_HEADER: \renewcommand*{\tableofcontents}{}
+
+#+LATEX_HEADER: \iclrfinaltrue
+
+\today
+
+* The effect of pruning in standard training on adversarial accuracy
+
+  The simplest question I've been trying to answer is: what is the effect of deep neural network pruning on adversarial vulnerability?
+  Does it provide any form of defense, or increase vulnerability?
+
+  Adversarial examples present thorny theoretical and practical problems.
+  Models that are not resilient to small perturbations are not safe to deploy in many situations;
+  moreover, they highlight our fundamental lack of understanding of the internal function of deep neural networks.
+  Developing defenses against them is critical for improving the trustworthiness of deep networks.
+
+  One key defense, originally identified in [[citep:TowardsResistantAdversarial]], is simply adding more capacity to networks: doubling or quadrupling
+  the number of channels in every layer of a network. This improves resilience, but bloats network model sizes and increases runtime cost.
+
+  One approach to ameliorating these issues is network pruning: zeroing weights or whole channels, to reclaim space, and potentially speed up network
+  evaluation. Unfortunately, pruning can often reduce network accuracy; it's also possible it would make networks more or less vulnerable to adversaries.
+  Several other works have attempted to apply various kinds of pruning/compression in the adversarial setting
+  [[citep:ToCompressOrnot]] [[citep:RobustnessOrCompression]] [[citep:DefensiveQuantization]].
+
+  The difference in my approach is that I have access to models trained using "network rewinding", as introduced by [[citep:StabilizingLTH]]. This is a
+  new style of network pruning that, while computationally expensive, can actually *increase* network accuracy, and also retain accuracy longer into the pruning
+  regimen.
+
+  Here I'll try attacking some pruned networks over the course of training, comparing their standard and adversarial accuracies.
+
+  I'm comparing two types of pruning, iterated fine-tuning and iterated rewinding. The networks are ResNetV1-20s trained on CIFAR10. The attack I'm using is
+  untargeted Projected Gradient Descent, using 5 iterations, the $l_\infty$ norm, and an epsilon of .004. [fn:1]
+
+[fn:1]This is the smallest reasonable epsilon to use, corresponding to changing each 8-bit RGBA channel in the image by a maximum of 1. Larger epsilons saturate adversarial accuracy immediately, making them not useful for comparison. Epsilon is applied on an image with channel values in the range $[0,1]$, and clipped; that is, the attack is applied before data normalization.]
+
+  We see that adversarial accuracy starts out very low and is *reduced* by additional pruning, similar to standard accuracy.
+
+  Note: to read the x-axis, know that each pruning iteration reduces network density by approximately 20%, and then fully retrains the network.
+  See figure [[ref:fig:marginal]] for a plot of network density over the course of pruning.
+
+  \newpage
+
+  To compare how quickly adversarial accuracy is reduced compared to standard accuracy, we can normalize all training runs by their starting
+  accuracy.
+
+  We can now see that adversarial accuracy drops off *faster* than standard accuracy over the course of network pruning. It's also more chaotic,
+  for reasons that aren't clear.
+
+  Note: currently these experiments don't show the entire accuracy regime. The available data only goes to 20 rewinding/finetuning iterations,
+  in which time accuracy has not dropped to 0.
+
+  Over this data axis, rewinding doesn't seem to have any consistent advantage over fine-tuning.
+
+  We can visualize the changes made to the input images; see figure [[ref:fig:sample]].
+
+
+  We can also examine the influence of changing attack parameters on a particular pruned network.
+  Here, I fix the pruning iteration at 10, and vary the parameters of PGD.
+
+  This smooth continuum of epsilon is, of course, not realistic for real-world attacks, since most image formats quantize
+  all channels to 8 bits. However, it's useful to understand the dynamics of the network.
+
+  We can see that increasing epsilon continuously degrades performance, while increasing PGD strength saturates fairly quickly. Interestingly,
+  lottery-ticket-style rewinding does seem to have a small advantage in a particular epsilon regime, even when the data are normalized by starting accuracy.
+  However, this advantage vanishes as the adversary increases in strength.
+
+  So we see that lottery-ticket-style training with rewinding does not provide any meaningful defense on its own.
+  However, it's an open question whether it can be usefully combined with other adversarial defenses.
+
+* Work for the next month
+
+   "Winning tickets" are networks that can be trained in a pruned state, often yielding higher
+   ending accuracy. They're found by training the network fully, pruning the final network,
+   and then rewinding to a step early in training.
+
+   Now that I've got my infrastructure set up, it should be relatively straightforward to
+   attempt combining this strategy with adversarial training. I'd like to investigate the
+   potential existence of adversarial lottery tickets,
+   as well as effects of swapping training regimes before / after pruning.
+
+   If we use oneshot pruning, we can draw a dividing line at the rewinding operation, and use one type of training
+   beforehand, and a possibly different style of training. We can contextualize this set of possible experiments as a box, with the post-training regime on the x
+   axis and the pre-training regime on the y axis:
+
+ |                          | standard post-training | adversarial post-training |
+ |--------------------------+------------------------+---------------------------|
+ | standard pre-training    | *standard LTH*         |                           |
+ | adversarial pre-training |                        |                           |
+
+ The questions I'd like to answer fit into this box. Standard LTH training is the top-left quadrant: standard
+ training for both regimes.
+
+** Question 1: are there "winning tickets" in the context of adversarial training?
+
+   That is, can we find networks that recover *adversarial* accuracy when trained
+   adversarially, pruned,
+   and then rewound and re-trained adversarially?
+
+|                          | standard post-training | adversarial post-training |
+|--------------------------+------------------------+---------------------------|
+| standard pre-training    | standard LTH           |                           |
+| adversarial pre-training |                        | *Question 1*              |
+
+   [[citep:RobustnessOrCompression]] attempted to answer this question, but failed because they didn't use rewinding;
+   [[citep:anonymous2020boosting]] also attempted to answer the question without rewinding, instead using hyperparameter search
+   to find functional networks.
+
+   I'll need to sweep over the rewinding iteration, because the necessary iteration has been found to vary between tasks and architectures.
+
+   Independent variables:
+   - Oneshot pruning rate
+   - Rewinding iteration
+
+   Dependent variables:
+   - Adversarial accuracy
+
+   Possible outcomes:
+   + *Winning tickets recover pre-pruning accuracy.*
+     This outcome has practical implications for adversarial training.
+
+   + *Winning tickets do not recover pre-pruning accuracy*.
+     This outcome would be an interesting counterexample to the lottery ticket phenomenon.
+
+   I have some preliminary data suggesting that tickets do exist, but I'd like to evaluate that more systematically.
+
+** Question 2: can I re-train standard lottery tickets in the adversarial setting?
+   Adversarial training is expensive; next we can ask, is it possible to use adversarially training with a standard winning ticket,
+   in order to gain the benefits of lottery ticket training?
+
+|                          | standard post-training | adversarial post-training |
+|--------------------------+------------------------+---------------------------|
+| standard pre-training    | standard LTH           | *Question 2*              |
+| adversarial pre-training |                        | Question 1                |
+
+   [[citep:anonymous2020boosting]] attempted to answer this question, but, again, didn't use rewinding. They also varied the strength of the
+   adversary in initial training (the number of PGD iterations), since a weak adversary is still much cheaper to compute than a strong adversary.
+
+   Independent variable:
+   - Whether training before pruning is adversarial or not.
+   - Pruning rate
+   - Pre-training adversary strength
+
+   Dependent variable:
+   - Adversarial accuracy
+
+   Possible outcomes:
+   - *Standard winning tickets reach the same accuracy* as adversarial winning tickets when
+     retrained adversarially:
+     This outcome has useful practical implications. It also would show that tickets are in some sense "general".
+
+   - *Weak-adversary winning tickets reach the same accuracy* as strong-adversary winning tickets when
+     retrained adversarially:
+     This result would replicate [[citep:anonymous2020boosting]] without (as much) expensive hyperparameter search.
+
+   - *Standard winning tickets reach a lower accuracy* as adversarial winning tickets when
+     retrained adversarially:
+     This outcome would show that tickets are not transferable between tasks.
+
+** Question 3: can a standard training maintain the robustness of an adversarially-trained winning ticket?
+   We can also ask the inverse question: will an adversarially-robust winning ticket maintain robustness [fn:2] when retrained with a weaker
+   (or, no) adversary?
+
+[fn:2] "Robustness" is Madry's term for adversarial resilience, i.e., adversarial accuracy, roughly speaking.]
+
+
+   |                          | standard post-training | adversarial post-training |
+   |--------------------------+------------------------+---------------------------|
+   | standard pre-training    | standard LTH           | Question 2                |
+   | adversarial pre-training | *Question 3*           | Question 1                |
+
+   Independent variable:
+   - Whether training before pruning is adversarial or not.
+   - Pruning rate
+   - Post-training adversary strength
+
+   Dependent variable:
+   - Adversarial accuracy
+
+   Possible outcomes:
+   - *Adversarial tickets do not need to be retrained adversarially* to maintain robustness:
+     This would be a *very* interesting result. It has implications connected to the other work
+     related to stability and basins of attraction going on in the lab.
+
+     This would provide strong evidence for the lottery ticket hypothesis, suggesting that the basin of attraction found by early training
+     determines most network properties.
+
+   * *Strong adversarial tickets need only a weak post-training adversary* to maintain robustness:
+     Similar to the above, this suggests that a strong adversary is only needed to find the initial basin of attraction, and a weak
+     adversary is sufficient to stay in it.
+
+   - *Adversarial tickets do need to be retrained adversarially* to maintain robustness:
+     The null hypothesis. I strongly suspect this will be the case.
+
+** Question 4: how small can I make an adversarially trained network?
+   [[citep:TowardsResistantAdversarial]] found that simply adding capacity to adversarially-trained networks can
+   improve accuracy. They suggest conceiving of adversarial training as a min-max problem:
+
+   $$\min_\theta \rho(\theta), \mathrm{where}\; \rho(\theta) = E_{(x,y)\sim D}[\max_{\delta \in S} L(\theta, x+\delta, y) ]$$
+
+   where:
+
+   $D$: training set
+
+   $L$: network loss
+
+   $\theta$: parameters
+
+   $S \subseteq \mathbb{R}^d$, some space of allowed perturbations
+
+   That is, adversarial training is the problem of empirically minimizing training loss, when an adversary is permitted to perturb all
+   inputs in some subspace to maximize training loss. According to this view, adversarial training requires learning more complex
+   decision boundaries; it's a harder problem.
+
+   However, some more recent work ([[citep:NotBugsFeatures]], [[citep:HighFreqGeneralization]]) has found that adversarial training can actually be thought of as training the network not to use "human-uninterpretable input features". This line of thinking suggests that many datasets have *predictive* input features that make no sense to humans. According to this view, it might be possible to prune adversarial networks even further than standard networks. Perhaps, then, the additional capacity is only needed during parameter search; or maybe the extra activations are needed,
+   but the same or fewer numbers of parameters are required in adversarial training.
+
+   By training Wide ResNets [[citep:WideResNets]] I can easily vary network width as a parameter.
+
+   This brings us back to the bottom-right corner:
+
+   |                          | standard post-training | adversarial post-training |
+   |--------------------------+------------------------+---------------------------|
+   | standard pre-training    | standard LTH           | Question 2                |
+   | adversarial pre-training | Question 3             | Question 1, *Question 4*  |
+
+   Independent variables:
+   - Network width
+   - Pruning rate
+
+   Dependent variables:
+   - Adversarial accuracy
+
+   Possible outcomes:
+   - *Wider networks can be pruned to the same parameter count* as un-widened networks:
+     Perhaps provides indirect evidence for [[citep:NotBugsFeatures]].
+     Has practical implications.
+
+   - *Wider networks can be pruned of the same percentage of weights* as un-widened networks:
+     The null hypothesis.
+
+
+** Engineering plan / timeline
+   I'll be attempting to answer the above question in the order written; Question 1 will require me to build out some more infrastructure,
+   which I can then use to straightforwardly answer the other questions.
+
+   First, I'll need to build out infrastructure to parallelize training grids, since my current code only trains on a single node.
+   Implementing this from scratch would be a herculean task, so I intend to leverage the Dask (https://dask.org/) python library.
+
+   Dask is a very widely-used distributed data science library. It allows users to define a grid -- or, more generally, a DAG -- of
+   tasks. A "task" can be any idempotent python function which returns a python object; for example, an epoch of network training.
+   Outputs from one task can be fed to later tasks.
+
+   Once you've defined your DAG, you boot up a set of machines, have them all connect to a supervisor machine, and submit your DAG. Dask will then
+   evaluate it in parallel across all the machines, transparently handling node failure and reporting of intermediate results. This works
+   with hardware accelerators on the machines; you just use whatever python libraries you normally would.
+
+   I'm hoping dask will make it quite straightforward to parallelize my current grid evaluation code. My rough timeline is:
+
+   - 1 week: setup training in parallel with Dask on TPU
+   - 1 week: make sure training is replicating previous results + answer question 1
+   - 1 week: answer questions 2 + 3
+   - 1 week: answer question 4
+
+   We'll see how well this goes.
+
+
+* Future work
+  Here's some brief descriptions of potential future work after this round of experiments.
+
+** Can pruning be combined with other network augmentations?
+   Recent work has suggested that removing BatchNorm layers [[citep:BatchNormBad]] and regularizing network filters to have lipschitz constants less than 1 [[citep:ParsevalNetworks]] can significantly improve adversarial robustness when combined with adversarial training. It would be interesting
+   to see whether these augmentations can be combined with pruning. It might be necessary to add other regularizations such as Dropout when removing
+   BatchNorm on very wide layers.
+
+** Pruning rates under nonsense datasets
+   Swapping out either the inputs or labels of a training dataset for random values can show a variety of results. [[citep:NotBugsFeatures]] trained a network on reassigned adversarial labels to show that adversarial features are predictive; other works
+   have studied the capacity of networks for memorization under random features and labels.
+
+   Studying possible pruning rates in this setting would let me study how relatively "difficult" different tasks are, in terms of necessary parameter counts.
+
+   An alternative metric to investigate would be Network Dissection IoU [[citep:netdissect2017]], or the modified netdissect IoU termed "network consistency" developed in [[citep:AdvTowardsInterpretability]].
+
+   There may also be connections between Network Dissections and the stability work going on in other parts of the lab.
+
+* Conclusion
+  That's my results for this month and my plans for next month. Let me know if you have any feedback.
+
+#+LATEX: \bibliography{../notes/literature/everything.bib}
+#+LATEX: \bibliographystyle{iclr2020_conference}

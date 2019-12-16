@@ -5,8 +5,67 @@
 #+OPTIONS: tex:t latex:t
 #+STARTUP: latexpreview
 
+#+LATEX_HEADER: \newcommand{\xv}[0]{\mathbf{x}}
+#+LATEX_HEADER: \newcommand{\yv}[0]{\mathbf{y}}
+#+LATEX_HEADER: \newcommand{\zv}[0]{\mathbf{z}}
+#+LATEX_HEADER: \newcommand{\fv}[0]{\mathbf{f}}
+#+LATEX_HEADER: \newcommand{\J}[0]{\mathbf{J}}
+#+LATEX_HEADER: \newcommand{\gv}[0]{\mathbf{g}}
+#+LATEX_HEADER: \newcommand{\hv}[0]{\mathbf{h}}
+#+LATEX_HEADER: \newcommand{\hxo}[0]{\mathbf{h}_0}
+#+LATEX_HEADER: \newcommand{\dd}[1]{\mathrm{d}#1}
+#+LATEX_HEADER: \newcommand{\piv}[0]{\boldsymbol{\pi}}
+#+LATEX_HEADER: \newcommand{\av}[0]{\mathbf{a}}
+#+LATEX_HEADER: \newcommand{\alv}[0]{\mathbf{\alpha}}
+#+LATEX_HEADER: \newcommand*{\Oc}[0]{\mathcal{O}}
+#+LATEX_HEADER: \newcommand*{\obsint}[1]{\langle #1 \rangle}
+#+LATEX_HEADER: \newcommand*{\Wv}[0]{\mathbf{W}}
+#+LATEX_HEADER: \newcommand*{\Av}[0]{\mathbf{A}}
+#+LATEX_HEADER: \newcommand*{\Wa}[0]{\widetilde{\mathbf{W}}}
+#+LATEX_HEADER: \newcommand*{\Aa}[0]{\widetilde{\mathbf{A}}}
+
+#+LATEX_HEADER: \newcommand*{\approxident}{%
+#+LATEX_HEADER: \mathrel{\vcenter{\offinterlineskip
+#+LATEX_HEADER: \hbox{$\sim$}\vskip-.35ex\hbox{$\sim$}}}}
+
+#+LATEX_HEADER: \usepackage{mathtools}
+#+LATEX_HEADER: \DeclarePairedDelimiter\abs{\lvert}{\rvert}%
+#+LATEX_HEADER: \DeclarePairedDelimiter\norm{\lVert}{\rVert}%
+#+LATEX_HEADER:
+#+LATEX_HEADER: % Swap the definition of \abs* and \norm*, so that \abs
+#+LATEX_HEADER: % and \norm resizes the size of the brackets, and the
+#+LATEX_HEADER: % starred version does not.
+#+LATEX_HEADER: \makeatletter
+#+LATEX_HEADER: \let\oldabs\abs
+#+LATEX_HEADER: \def\abs{\@ifstar{\oldabs}{\oldabs*}}
+#+LATEX_HEADER: %
+#+LATEX_HEADER: \let\oldnorm\norm
+#+LATEX_HEADER: \def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
+#+LATEX_HEADER: \makeatother
+
+#+LATEX_HEADER: \newcommand*\lgrad[1]{\overline{#1}}
+#+LATEX_HEADER: \newcommand*\tderiv[2]{\frac{\mathrm{d}#1}{\mathrm{d}#2}}
+#+LATEX_HEADER: \newcommand*\pderiv[2]{\frac{\partial #1}{\partial #2}}
+#+LATEX_HEADER: \newcommand{\NN}[0]{\textsc{nn}}
+#+LATEX_HEADER: \newcommand{\transpose}[1]{#1 ^\top}
+#+LATEX_HEADER: \renewcommand*{\tableofcontents}[0]{}
+
+#+LATEX_HEADER: \newcommand\steeq{\,\stackrel{\mathclap{\mbox{\textsc{ste}}}}{=}\,}
+
+#+TODO: TODO WIP | DONE
+#+TODO: CANCELED
+
+* tig slurm instance
+  ./julia-lab.sh
+
+  then, in terminal:
+  cp .ssh/* ~/.ssh/
+
+  note: after installing the kernel, you need to copy the kernel over:
+  cp -R /home/jhgilles/.local/share/jupyter/kernels/julia-1.1 /data/scratch/jhgilles/julia/share/jupyter/kernels/julia-1.1
 * gcloud instance
   104.197.28.58
+
 *** Create instance
     In gcloud: new compute node, ubuntu 19.10
 
@@ -14,7 +73,7 @@
 
 *** Connect
 #+BEGIN_SRC bash :noeval
-env TERM=xterm-256color ssh -i ~/.ssh/google_compute_engine radical@34.68.107.38
+env TERM=xterm-256color ssh -i ~/.ssh/google_compute_engine radical@104.197.28.58
 #+END_SRC
 
 *** Initial setup
@@ -23,45 +82,34 @@ env TERM=xterm-256color ssh -i ~/.ssh/google_compute_engine radical@34.68.107.38
 sudo apt-get update && sudo apt-get upgrade -y
 sudo apt-get install git vim wget tmux -y
 
+
 # config files (on local)
 # cd adv_lth
-scp -i ~/.ssh/google_compute_engine -r cloud/supervisor/* cloud/supervisor/.* radical@34.68.107.38:/home/radical/
+scp -i ~/.ssh/google_compute_engine -r cloud/supervisor/* cloud/supervisor/.* radical@104.197.28.58:/home/radical/
 
-# add sources
-
-sudo su -
-cat >/etc/apt/sources.list
-#~~~~
-deb http://deb.debian.org/debian/ stretch main contrib non-free
-deb-src http://deb.debian.org/debian/ stretch main contrib non-free
-deb http://security.debian.org/ stretch/updates main contrib non-free
-deb-src http://security.debian.org/ stretch/updates main contrib non-free
-deb http://deb.debian.org/debian/ stretch-updates main contrib non-free
-deb-src http://deb.debian.org/debian/ stretch-updates main contrib non-free
-deb http://httpredir.debian.org/debian stretch-backports main contrib non-free
-deb-src http://httpredir.debian.org/debian stretch-backports main contrib non-free
-#~~~~
-logout
-
-sudo apt update
-
-# check gpu
-sudo apt install nvidia-detect
-nvidia-detect
+# check for gpu
+lspci | grep NVIDIA
 
 # install drivers
-sudo apt install linux-headers-$(uname -r|sed 's/[^-]*-[^-]*-//')
-sudo apt install -t stretch-backports nvidia-driver nvidia-smi nvidia-cuda-toolkit
+# (maybe should use "headless"?)
+sudo apt install nvidia-cuda-dev nvidia-headless-435 nvidia-utils-435 nvidia-profiler nvidia-cuda-toolkit
 
 # reboot
 sudo reboot now
 
 # ... reconnect ...
 # check install
-nvidia-detect
 nvidia-smi
+nvcc --version
 
+# try samples
 # https://xcat-docs.readthedocs.io/en/stable/advanced/gpu/nvidia/verify_cuda_install.html
+git clone --single-branch --depth 1 --branch 10.1 https://github.com/NVIDIA/cuda-samples cuda-samples
+cd cuda-samples/Samples/deviceQuery
+# replace /usr/local/cuda with /usr/ in Makefile, then:
+make
+./deviceQuery
+cd ~
 
 # the repo
 git clone git@github.com:kazimuth/6.338 6.338
@@ -75,8 +123,7 @@ conda create -p ./julia
 conda activate ./julia
 
 # jupyterlab + cuda + julia
-conda install cudatoolkit
-conda install -c conda-forge jupyterlab julia
+conda install -c conda-forge jupyterlab julia -y
 
 # in julia:
 julia
@@ -98,7 +145,7 @@ conda activate ./env
 jupyter lab
 #+END_SRC
 
-    open https://34.68.107.38:8888
+    open https://104.197.28.58:8888
     note: jupyterlab password is "grumpiness ampersand"
 *** Julia settings
 #+BEGIN_SRC bash :noeval
@@ -210,14 +257,1226 @@ dependencies:
   - zlib=1.2.11=h516909a_1006
 #+END_SRC
 
-* TODO get cuda working on instance
+* DONE extract definitions from paper
+  CLOSED: [2019-12-10 Tue 19:12]
+  https://arxiv.org/abs/1711.11294
+
+  backprop sources:
+  https://mitmath.github.io/18337/lecture10/estimation_identification
+  https://mitmath.github.io/18337/lecture11/adjoints
+  https://math.mit.edu/~stevenj/18.336/adjoint.pdf
+  https://www.cs.toronto.edu/~rgrosse/courses/csc321_2018/slides/lec06.pdf
+
+  see also:
+  https://github.com/layog/Accurate-Binary-Convolution-Network/blob/master/ABC.ipynb
+
+  $$\Wv \approxident \Wa = \alpha_1 \Wa_1 + \alpha_2 \Wa_2 + ... + \alpha_M \Wa_M = \sum_i^M \alpha_i  \Wa_i$$
+  $$\Av \approxident \Aa = \beta_1 \Aa_1 + \beta_2 \Aa_2 + ... + \beta_N \Aa_N = \sum_j^N \beta_j  \Aa_j $$
+  v$$\Wv\Av \approxident \Wa\Aa = (\sum_i^M \alpha_i \Wa_i)(\sum_j^N \beta_j \Aa_j) \\
+  = \sum_i^M \sum_j^N \alpha_i \beta_j \Wa_i \Aa_j$$
+
+** DONE weight binarization
+   CLOSED: [2019-12-09 Mon 17:44]
+   We want:
+
+   $$\alpha_i, \Wa_i = \arg \min_{\alpha_i, \Wa_i} \norm{\Wv - \sum_i \alpha_i \Wa_i}^2$$              (1)
+
+   Could solve it numerically, i.e. through gradient descent, but you wouldn't be able to backpropagate through to real valued weights.
+
+   Instead, assume:
+
+   $$\Wa_i = F_{u_i}(\Wv) = \mathrm{sign}(\Wv - \mathrm{mean}(\Wv) + u_i \, \mathrm{std}(\Wv))$$
+
+   Where $u_i$ is a shift parameter; can be chosen through training or otherwise.
+
+   Now (1) becomes a linear regression problem (3). During training, we can fit $\alpha_i$ using a linear solver.
+   We can back-propagate through $F_{u_i}$ using the straight-through estimator (e.g treat it as an identity function) and using a standard
+   pullback for linsolve().
+
+   So:
+
+   $$\lgrad{W} \;\steeq\; \lgrad{F_{u_i}(\Wv)}$$
+
+   (note: $$\lgrad{\Wv} = \pderiv{l}{\Wv}$$, the gradient of the scalar loss w.r.t. $\Wv$:
+
+   $$\pderiv{l}{W} \;\steeq\; \pderiv{l}{F_{u_i}(\Wv)}$$
+   )
+
+   Then:
+   $$\Wa = \alpha_1 \Wa_1 + \alpha_2 \Wa_2 + ... + \alpha_M \Wa_M = \sum_i^M \alpha_i  \Wa_i$$
+   So:
+   $$\pderiv{l}{\Wv} = \pderiv{l}{\Wa}\left( \sum_i \pderiv{\Wa}{\Wa_i} \pderiv{\Wa_i}{\Wv}\right)
+   \;\steeq\; \pderiv{l}{\Wa} \left(\sum_i \alpha_i \pderiv{\Wa}{\Wa_i}\right) = \sum_i \alpha_i \pderiv{l}{\Wa_i}$$
+
+   We can also approximate weights channel-wise: do the above operations for every output channel.
+   Note that when $M=1$ this is equivalent to the Binary Weights Network proposed by Rastegari.
+
+*** ideas
+    - other ways to select weights: to minimize output error, minimize outlier error, ...
+      - smt solver?
+    - prune weights, then find mask?
+      can you strip out the pruned weights tho? i don't think so.
+    - is there some way to binarize to represent 0 more easily?
+
+
+** DONE activation binarization
+   CLOSED: [2019-12-10 Tue 19:11]
+   $$\mathrm{actbin}_v(x) : \mathbb{R} \to \{-1, 1\} = \begin{cases}
+   +1 & \mathrm{clip}(x + v, 0, 1) > 0.5 \\
+   -1 & \mathrm{otherwise}
+   \end{cases}$$
+
+   $$\lgrad{x} = \lgrad{\mathrm{actbin}_v(x)} * \begin{cases}
+   1 & x + v \in [0, 1] \\
+   0 & \mathrm{otherwise}
+   \end{cases}$$
+
+   $$\lgrad{v} = \lgrad{\mathrm{actbin}_v(x)} * \begin{cases}
+   1 & x + v \in [0, 1] \\
+   0 & \mathrm{otherwise}
+   \end{cases}$$
+
+   note: use batchnorm before activation to keep activations about where you'd want. then:
+
+   $$\Aa_i = \mathrm{actbin}_{v_i}.(\Av)$$
+
+   Both $v_i$ and $\beta_i$ are trainable.
+
+
+** note on max-pooling
+   max pooling on a binary network is basically useless. so, do it before batchnorm + activation
+
+
+** full training algorithm
+
+   first, train normally. Then switch things
+
+   https://arxiv.org/pdf/1711.11294.pdf#subsection.3.3
+
+   [[./fullalg.png]]
+
+
+** u_i settings
+   $u_i$ settings:
+   https://arxiv.org/pdf/1711.11294.pdf#table.4
+
+   [[./utable.png]]
+
+* DONE get cuda working on instance
+  CLOSED: [2019-12-09 Mon 16:09]
   https://docs.anaconda.com/anaconda/user-guide/tasks/gpu-packages/
-* TODO extract definitions from paper
-* TODO find old python code
+* DONE find old python code
+  CLOSED: [2019-12-09 Mon 16:14]
+   https://gitlab.com/kazimuth/sr
+
+   #+BEGIN_SRC python :noeval
+"""Learned quantization operators inspired by https://github.com/Microsoft/LQ-Nets"""
+
+import numpy as np
+import tvm
+from tvm.contrib.dlpack import to_pytorch_func
+import warnings
+import torch
+import torch.nn
+import torch.utils.dlpack
+import itertools
+import sys
+
+from typing import List, Tuple
+
+
+def levels(basis: np.ndarray):
+    product_args = [[-1, +1] for e in basis]
+    levels = list(itertools.product(*product_args))
+    levels.sort(key=lambda l: l @ basis)
+    return [(l @ basis, l) for l in levels]
+
+
+def splits(basis: np.ndarray):
+    # returns [thresh, bits]
+    # if prev_thresh(init -inf) < v < thresh, use val
+    # last thresh is +inf
+    levs = levels(basis)
+    res = []
+    for (l, bits), (lnext, _) in zip(levs, levs[1:]):
+        res.append(((l + lnext) / 2, bits))
+    res.append((np.infty, levs[-1][1]))
+    return res
+
+
+def fsplits(basis: np.ndarray):
+    # returns [thresh, val]
+    # if prev_thresh < v < thresh, use val
+    # last thresh is +inf
+    res = []
+    s = splits(basis)
+    for (t, b) in s:
+        res.append((t, b @ basis))
+    return res
+
+
+def quantize(arr: np.ndarray, basis: np.ndarray):
+    result = np.empty(arr.shape + (len(basis),), dtype='int8')
+    unset = np.ones(arr.shape, dtype='bool')
+    for thresh, bits in splits(basis):
+        to_set = (arr < thresh) & unset
+        unset[to_set] = False
+        result[to_set] = bits
+    return result
+
+
+def fquantize(arr: np.ndarray, basis: np.ndarray) -> np.ndarray:
+    result = np.empty(arr.shape, dtype='float32')
+    unset = np.ones(arr.shape, dtype='bool')
+    for thresh, val in fsplits(basis):
+        to_set = (arr < thresh) & unset
+        unset[to_set] = False
+        result[to_set] = val
+    return result
+
+
+def evaluate(bit_arr: np.ndarray, basis: np.ndarray):
+    return np.tensordot(bit_arr, basis, (1, 0))
+
+
+def threshbits(basis):
+    s = splits(basis)
+    thresh = []
+    bits = []
+    for (t, bb) in s:
+        thresh.append(t)
+        bits.append(bb)
+    thresh.pop()
+    return np.array(thresh), np.array(bits)
+
+
+def threshval(basis: np.ndarray):
+    fs: np.ndarray = np.array(fsplits(basis))
+    return (fs[:-1, 0], fs[:, 1])
+
+
+class memodict(dict):
+    def __init__(self, fn):
+        self.fn = fn
+        self.warned = False
+
+    def __repr__(self):
+        return f'memodict({self.fn}, len={len(self)})'
+
+    def __missing__(self, k):
+        args, kwargs = k
+        ret = self.fn(*args, **dict(kwargs))
+        if len(self) >= 100 and not self.warned:
+            self.warned = True
+            warnings.warn(
+                'More than 100 entries in the memodict, consider .clear()ing it')
+        self[k] = ret
+        return ret
+
+    def __call__(self, *args, **kwargs):
+        key = (tuple(args), tuple(kwargs.items()))
+        return self[key]
+
+def _tvm_quantize_inner(v, bits, Thresh, Value, cursor=None, depth=0):
+    '''The contents of the inner loop of a quantization operation.
+
+    Quantizes such that if Thresh[i-1] < v < Thresh[i], Value[i] is chosen.
+
+    Formulated so that it requires no instruction branches, only a series of compares:
+    Performs a binary search where each step either adds to or subtracts from the bounds.
+
+    v: the tvm.Expr to quantize
+    bits: the bitwidth to quantize to
+    Thresh: the tvm.placeholder to pull quantization thresholds from.
+    Value: the tvm.placeholder to pull quantized values from.
+    depth, lo, hi: search bounds
+    '''
+    width = int(2 ** bits)
+
+    # visualization:
+    # bits = 3, width = 8
+    #
+    #
+    # 0 1 2 3 4 5 6 7    <- Value
+    #  0 1 2 3 4 5 6     <- Thresh
+    # .|.|.|.|.|.|.|.
+    #        ^         0 <- depth
+    #    ^       ^     1
+    #  ^   ^   ^   ^   2
+    # . . . . . . . .  3
+
+
+    # note: both cases can both fire if width=2
+    if depth == 0:
+        # top
+        cursor = int(width // 2 - 1)
+
+    if depth == np.log2(width) - 1:
+        # base
+        return tvm.expr.Select(v < Thresh[cursor], Value(cursor), Value(cursor+1))
+
+    next_cursor = tvm.var(f'cursor{depth+1}', dtype='int32')
+
+    delta = int(width // 2**(depth + 2))
+
+    return tvm.expr.Let(
+        # let
+        next_cursor,
+        # =
+        tvm.expr.Select(v < Thresh[cursor], cursor - delta, cursor + delta),
+        # in:
+        _tvm_quantize_inner(v, bits, Thresh, Value, next_cursor, depth+1)
+    )
+
+def _tvm_learned_quantize(bits,
+                          n=tvm.var('n'),
+                          c=tvm.var('c'),
+                          y=tvm.var('y'),
+                          x=tvm.var('x'),
+                          target='llvm',
+                          extrabit=False,
+                          floating_point=False):
+    '''Build an operator to perform a learned-quantize operation.
+    floating_point: whether to output a single floating-point number or multiple +1/-1 floating bit numbers
+    extrabit: whether to add a final extra bit in floating_point=False mode that is always +1 (for constant offset)
+    '''
+    values = int(2 ** bits)
+
+    In = tvm.placeholder((n, c, y, x), name='In')
+
+    Threshes = tvm.placeholder((values-1,), name='Threshes')
+
+    if floating_point:
+        Vals = tvm.placeholder((values,), name='Vals')
+        Out = tvm.compute((n, c, y, x),
+            lambda nn, cc, yy, xx: _tvm_quantize_inner(
+                In(nn, cc, yy, xx), bits, Threshes, Vals
+            ),
+            'Out')
+
+    elif extrabit:
+        Vals = tvm.placeholder((values, bits), name='Vals')
+        Out = tvm.compute((n, c, y, x, bits+1),
+            lambda nn, cc, yy, xx, bb: tvm.expr.Select(bb == bits,
+                tvm.const(+1, 'float32'),
+                _tvm_quantize_inner(
+                    In(nn, cc, yy, xx), bits, Threshes, lambda i: Vals[i, bb],
+                ),
+            ),
+            'Out')
+
+    else:  # normal n bits
+        Vals = tvm.placeholder((values, bits), name='Vals')
+        Out = tvm.compute((n, c, y, x, bits),
+            lambda nn, cc, yy, xx, bb: _tvm_quantize_inner(
+                In(nn, cc, yy, xx), bits, Threshes, lambda i: Vals[i, bb]
+            ),
+            'Out')
+
+    s = tvm.create_schedule(Out.op)
+
+    if target == 'llvm':
+        # just fuse the outer loop; llvm will handle vectorization
+        nc = s[Out].fuse(Out.op.axis[0], Out.op.axis[1])
+        s[Out].parallel(nc)
+
+    elif target == 'opencl' or target == 'cuda':
+        # thread variables
+        block_x = tvm.thread_axis("blockIdx.x")
+        block_y = tvm.thread_axis("blockIdx.y")
+        block_z = tvm.thread_axis("blockIdx.z")
+        thread_x = tvm.thread_axis((0, 16), "threadIdx.x")
+        thread_y = tvm.thread_axis((0, 16), "threadIdx.y")
+
+        if floating_point:
+            nn, cc, yy, xx = Out.op.axis
+        else:
+            nn, cc, yy, xx, bb = Out.op.axis
+
+        nc = s[Out].fuse(nn, cc)
+        s[Out].bind(nc, block_z)
+
+        oy, iy = s[Out].split(yy, factor=16)
+        ox, ix = s[Out].split(xx, factor=16)
+
+        s[Out].bind(oy, block_y)
+        s[Out].bind(ox, block_x)
+
+        s[Out].bind(iy, thread_y)
+        s[Out].bind(ix, thread_x)
+
+        # TODO: cache thresholds? multiple ops per thread?
+    return tvm.build(s, [In, Threshes, Vals, Out],
+                     name=f'quantize_bits_{target}_{n}_{c}_{y}_{x}',
+                     target=target)
+
+
+@memodict
+def _torch_learned_quantize(bits, extrabit=False, floating_point=False, target='llvm'):
+    res = _tvm_learned_quantize(
+        bits, extrabit=extrabit, floating_point=floating_point, target=target)
+
+    def q(*args):
+        result = []
+        for i, arg in enumerate(args):
+            if isinstance(arg, torch.Tensor):
+                pak = torch.utils.dlpack.to_dlpack(arg)
+                #from . import inspect
+                # inspect.inspect(pak)
+
+                #print(f'arg {i} is tensor, dlpacking')
+                result.append(tvm.nd.from_dlpack(
+                    torch.utils.dlpack.to_dlpack(arg)))
+                # result.append(tvm.nd.array(arg.detach().cpu().numpy().copy()))
+                # print(result[-1].asnumpy().ndim)
+                # print('done')
+
+        return res(*result)
+    #fn = to_pytorch_func(q)
+
+    return q
+
+
+class LearnedQuantizeOpFloat(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input, thresh, vals):
+        assert thresh.shape[0] == vals.shape[0] - \
+            1, 'mismatched thresh/val size'
+        bits = np.log2(vals.shape[0])
+        assert bits == int(bits), 'vals shape not power of 2'
+
+        target = 'cuda' if input.is_cuda else 'llvm'
+
+        output = input.new_empty(input.shape)
+
+        fn = _torch_learned_quantize(bits, floating_point=True, target=target)
+
+        fn(input, thresh, vals, output)
+
+        return output
+
+    @staticmethod
+    def backward(ctx, output_grad):
+        # "straight-through estimator"
+        return output_grad, None, None
+
+
+# class LearnedQuantizeOpBits
+
+
+def learned_quantize(input, basis, floating_point=True, extrabit=False):
+    '''Apply a learned quantization operation.
+
+    input: the tensor to quantize
+    basis: the basis to quantize against
+
+    floating_point: whether to return the quantization result as an individual floating point number,
+        or as multiple +/-1 float32s
+    '''
+    if floating_point:
+        thresh, val = threshval(basis.cpu().detach().numpy())
+    else:
+        thresh, val = threshbits(basis.cpu().detach().numpy())
+
+    thresh = torch.from_numpy(thresh.astype('float32'))
+    val = torch.from_numpy(val.astype('float32'))
+
+    if input.is_cuda:
+        thresh = thresh.cuda()
+        val = val.cuda()
+
+    if floating_point:
+        return LearnedQuantizeOpFloat.apply(input, thresh, val)
+
+    else:
+        # print(basis)
+
+        bits = basis.shape[0]
+        if extrabit:
+            bits += 1
+
+        target = 'cuda' if input.is_cuda else 'llvm'
+        fn = _torch_learned_quantize(
+            bits, floating_point=False, target=target, extrabit=extrabit)
+        #fn = _torch_learned_quantize(bits, floating_point=False, target=target)
+
+        output = input.new_empty(tuple(input.shape) + (bits,))
+
+        fn(input, thresh, val, output)
+
+        return output
+
+
+def next_basis(x, basis, extrabit):
+    assert len(x.shape) == 4
+    assert len(basis.shape) == 1
+
+    bits = basis.shape[0]
+
+    # n c h w b
+    quantized = learned_quantize(
+        x, basis, floating_point=False, extrabit=extrabit)
+
+    # nchw b
+    quantized = quantized.view(-1, bits)
+
+    # nchw 1
+    targets = x.view(-1, 1)
+
+    # max(nchw, b) 1
+    # answer is first b bits
+    result, _ = torch.gels(targets, quantized)
+    result = result[:bits].view(-1)
+
+    return result
+
+
+class Quantize(torch.nn.Module):
+    def __init__(self, bits, avg_factor=.9, init_type='asc', moving_center=False, extrabit=False):
+        super().__init__()
+
+        self.register_buffer('_bits', torch.Tensor([bits]))
+        self.register_buffer('_avg_factor', torch.Tensor([avg_factor]))
+        self.register_buffer('_moving_center', torch.Tensor([moving_center]))
+        self.register_buffer('_extrabit', torch.Tensor([extrabit]))
+
+        if init_type == 'asc':
+            self.register_buffer('basis',
+                                 torch.Tensor(list(range(1, self.bits+1))) / float(self.bits))
+        else:
+            raise UnimplementedError(f'No such init_type: "{init_type}"')
+
+    def __repr__(self):
+        return f'Quantize(bits={self.bits}, basis={self.basis})'
+
+    def cuda(self):
+        super().cuda()
+        self._bits.cpu()
+        self._avg_factor.cpu()
+        self._moving_center.cpu()
+
+    @property
+    def bits(self):
+        return int(self._bits[0])
+
+    @property
+    def avg_factor(self):
+        return int(self._avg_factor[0])
+
+    @property
+    def moving_center(self):
+        return bool(self._moving_center[0])
+
+    @property
+    def extrabit(self):
+        return bool(self._moving_center[0])
+
+    def forward(self, x):
+        if self.training:
+            newbasis = next_basis(x, self.basis, self.extrabit)
+            self.basis = self.basis * self.avg_factor + \
+                newbasis * (1.0-self.avg_factor)
+
+        return learned_quantize(x, self.basis)
+#+END_SRC
+* WIP notes
+** Effectively using GPUs with Julia
+   https://docs.google.com/presentation/d/1l-BuAtyKgoVYakJSijaSqaTL3friESDyTOnU2OLqGoA/edit#slide=id.p
+
+   @cuprintf
+   @cuda threads=... f(args)
+   @device_code_typed @cuda f(args)
+   @device_code_llvm @cuda f(args)
+   @device_code_sass @cuda f(args)
+   @device_code_ptx @cuda f(args)
+
+   @device_code_{lowered,typed,warntype,llvm,ptx,sass}
+
+   #+BEGIN_SRC
+   julia> const x = CuArray{Float32}(undef, 1024)
+   julia> using BenchmarkTools
+   julia> @benchmark CuArrays.@sync(identity.($x))
+   BenchmarkTools.Trial:
+   minimum time:     13.824 μs (0.00% GC)
+   maximum time:     401.689 μs (0.00% GC)
+   julia> CuArrays.@time CuArrays.@sync identity.(x);
+   0.000378 seconds (57 CPU allocations: 1.938 KiB)
+                  (1 GPU allocation: 4.000 KiB)
+   julia> using CUDAdrv
+   julia> CUDAdrv.@elapsed identity.(x)
+   5.888f-6
+   #+END_SRC
+
+   @benchmark CuArrays.@sync ...
+   CuArrays.@time CuArrays.@sync identity
+
+   can use map, reduce, broadcast on cuda
+
+   vendor libraries are transparently used (except CUFFT)
+
+   don't iterate scalarly
+   avoid multiple kernels
+   bump the problem size
+   keep data on GPU
+
+   strengths:
+   - composable
+   -
+
+** conv / flux / nnlib / zygote
+
+   #+BEGIN_QUOTE
+   Flux provides a set of helpers for custom layers, which you can enable by calling
+   ~Flux.@functor Affine~
+   This enables a useful extra set of functionality for our Affine layer, such as collecting its parameters or moving it to the GPU.
+   #+END_QUOTE
+
+   conv: defined in flux, called in nnlib; zygote defines adjoint
+
+   note: technically not a convolution, it's a correlation. >:/
+   https://fluxml.ai/Flux.jl/stable/models/layers/#Flux.Conv
+   https://github.com/FluxML/Flux.jl/blob/f46b5243dbc762081ccfbe991690750b307e2fc2/src/layers/conv.jl#L5-L25
+   https://github.com/FluxML/NNlib.jl/blob/master/src/conv.jl
+
+   note: takes data in order WHCN (but, fortran order. so actually NCHW)
+   need to define a conv with an alternate data order somehow.
+   how does this plug into differentiation? Zygote.jl,
+
+#+BEGIN_SRC julia :noeval
+"""
+    Conv(size, in=>out)
+    Conv(size, in=>out, relu)
+Standard convolutional layer. `size` should be a tuple like `(2, 2)`.
+`in` and `out` specify the number of input and output channels respectively.
+Example: Applying Conv layer to a 1-channel input using a 2x2 window size,
+         giving us a 16-channel output. Output is activated with ReLU.
+    size = (2,2)
+    in = 1
+    out = 16
+    Conv((2, 2), 1=>16, relu)
+Data should be stored in WHCN order (width, height, # channels, # batches).
+In other words, a 100×100 RGB image would be a `100×100×3×1` array,
+and a batch of 50 would be a `100×100×3×50` array.
+Takes the keyword arguments `pad`, `stride` and `dilation`.
+"""
+struct Conv{N,M,F,A,V}
+  σ::F
+  weight::A
+  bias::V
+  stride::NTuple{N,Int}
+  pad::NTuple{M,Int}
+  dilation::NTuple{N,Int}
+end
+
+function Conv(w::AbstractArray{T,N}, b::AbstractVector{T}, σ = identity;
+              stride = 1, pad = 0, dilation = 1) where {T,N}
+  stride = expand(Val(N-2), stride)
+  pad = expand(Val(2*(N-2)), pad)
+  dilation = expand(Val(N-2), dilation)
+  return Conv(σ, w, b, stride, pad, dilation)
+end
+
+Conv(k::NTuple{N,Integer}, ch::Pair{<:Integer,<:Integer}, σ = identity;
+     init = glorot_uniform,  stride = 1, pad = 0, dilation = 1) where N =
+  Conv(init(k..., ch...), zeros(ch[2]), σ,
+       stride = stride, pad = pad, dilation = dilation)
+
+function (c::Conv)(x::AbstractArray)
+  # TODO: breaks gpu broadcast :(
+  # ndims(x) == ndims(c.weight)-1 && return squeezebatch(c(reshape(x, size(x)..., 1)))
+  σ, b = c.σ, reshape(c.bias, map(_->1, c.stride)..., :, 1)
+  cdims = DenseConvDims(x, c.weight; stride=c.stride, padding=c.pad, dilation=c.dilation)
+  σ.(conv(x, c.weight, cdims) .+ b)
+end
+@functor Conv
+#+END_SRC
+
+   https://github.com/FluxML/Flux.jl/blob/master/src/optimise/train.jl
+
+   just calls Zygote `gradient`.
+
+   https://github.com/FluxML/Zygote.jl/blob/master/src/lib/nnlib.jl
+#+BEGIN_SRC julia :noeval
+@adjoint conv(x, w, cdims; kw...) =
+  conv(x, w, cdims; kw...),
+    Δ -> begin
+       return (
+           NNlib.∇conv_data(Δ, w, cdims; kw...),
+           NNlib.∇conv_filter(x, Δ, cdims; kw...),
+           nothing,
+       )
+   end
+
+@adjoint ∇conv_data(x, w, cdims; kw...) =
+  ∇conv_data(x, w, cdims; kw...),
+    Δ -> begin
+       return (
+           NNlib.conv(Δ, w, cdims; kw...),
+           NNlib.∇conv_filter(Δ, x, cdims; kw...),
+           nothing,
+       )
+   end
+
+@adjoint depthwiseconv(x, w, cdims; kw...) =
+  depthwiseconv(x, w, cdims; kw...),
+    Δ -> begin
+       return (
+           NNlib.∇depthwiseconv_data(Δ, w, cdims; kw...),
+           NNlib.∇depthwiseconv_filter(x, Δ, cdims; kw...),
+           nothing,
+       )
+       end
+#+END_SRC
+
+** Zygote
+
+#+BEGIN_QUOTE
+   Caveat Emptor
+
+   Zygote is in an early stage and may break, but issue reports and beta testing are welcome. In particular Zygote does not yet have comprehensive gradient definitions and may fail if it hits complex code in Base Julia.
+
+   Zygote's runtime performance should generally be good, but compile times are not optimised, so calling gradient the first time can have noticeable lag. BenchmarkTools is recommended to avoid measuring JIT time.
+
+   A current limitation is that Zygote will not automatically see redefined functions (for example if you call gradient(f, x), then redefine f, then take the gradient again). You can call Zygote.refresh() to completely reset what Zygote sees. It's often useful to have this in your script/notebook after function definitions.
+
+   The Julia compiler does not yet support all features needed to make Zygote fast, particularly in the presence of control flow. Until these are officially supported Zygote contains a flag to enable faster operation. If you can handle the additional caveats it's a good way to see Zygote's peak performance.
+#+END_QUOTE
+
+   Zygote docs:
+   https://fluxml.ai/Zygote.jl/dev/
+   https://fluxml.ai/Zygote.jl/dev/adjoints/
+   https://fluxml.ai/Zygote.jl/dev/utils/
+
+   https://github.com/timholy/ProfileView.jl
+
+   https://fluxml.ai/Zygote.jl/dev/profiling/
+
+   https://github.com/FluxML/ZygoteRules.jl
+
+*** adjoint note
+   Zygote has many adjoints for non-mathematical operations such as for indexing and data structures. Though these can still be seen as linear functions of vectors, it's not particularly enlightening to implement them with an actual matrix multiply. In these cases it's easiest to think of the adjoint as a kind of inverse. For example, the gradient of a function that takes a tuple to a struct (e.g. y = Complex(a, b)) will generally take a struct to a tuple ((ȳ.re, ȳ.im)). The gradient of a getindex y = x[i...] is a setindex! x̄[i...] = ȳ, etc.
+
+** BitArray
+   Julia has built-in BitArray:
+   https://github.com/JuliaLang/julia/blob/master/base/bitarray.jl
+
+   https://github.com/JuliaGPU/CuArrays.jl/blob/master/src/array.jl
+
+** SIMD
+   https://docs.julialang.org/en/v1/base/simd-types/index.html
+
+#+BEGIN_QUOTE
+   Type VecElement{T} is intended for building libraries of SIMD operations. Practical use of it requires using llvmcall. The type is defined as:
+
+   struct VecElement{T}
+       value::T
+   end
+
+   It has a special compilation rule: a homogeneous tuple of VecElement{T} maps to an LLVM vector type when T is a primitive bits type and the tuple length is in the set {2-6,8-10,16}.
+
+   At -O3, the compiler might automatically vectorize operations on such tuples. For example, the following program, when compiled with julia -O3 generates two SIMD addition instructions (addps) on x86 systems:
+
+   const m128 = NTuple{4,VecElement{Float32}}
+
+   function add(a::m128, b::m128)
+       (VecElement(a[1].value+b[1].value),
+       VecElement(a[2].value+b[2].value),
+       VecElement(a[3].value+b[3].value),
+       VecElement(a[4].value+b[4].value))
+   end
+
+   triple(c::m128) = add(add(c,c),c)
+
+   code_native(triple,(m128,))
+
+   However, since the automatic vectorization cannot be relied upon, future use will mostly be via libraries that use llvmcall.
+#+END_QUOTE
+
+   https://docs.julialang.org/en/v1/base/c/#Core.Intrinsics.llvmcall
+
+
+   https://kristofferc.github.io/post/intrinsics/
+
+** CudaNative (/ CUDA)
+    https://juliagpu.gitlab.io/CUDAnative.jl/
+
+    http://mikeinnes.github.io/2017/08/24/cudanative.html
+
+*** intrinsics
+    vote:
+    https://juliagpu.gitlab.io/CUDAnative.jl/lib/device/cuda/#Warp-Vote-1
+    https://github.com/JuliaGPU/CUDAnative.jl/blob/master/src/device/cuda/warp_vote.jl
+
+    other stuff:
+    https://github.com/JuliaGPU/CUDAnative.jl/tree/master/src/device/cuda
+    intrinsic calls made through ~@wrap~ macro:
+    https://github.com/JuliaGPU/CUDAnative.jl/blob/master/src/device/tools.jl#L44
+
+    what about cuda intrinsics in general?
+    https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#mathematical-functions-appendix
+
+    note: julia will call these.
+
+    what's the difference between functions and intrinsics?
+    https://stackoverflow.com/questions/24085833/cuda-math-api-difference-between-functions-and-intrinsics
+#+BEGIN_QUOTE
+    The answer lies in Appendix D of the programming guide. The intrinsics for the transcendental, trigonometric, and special functions are faster, but have more domain restrictions and generally lower accuracy than their software counterparts. For the primary purpose of the hardware (ie graphics), having fast approximate functions for sin, cos, square root, reciprocal, etc. allows for improved shader performance when ultimate mathematical accuracy is not critical. For some compute tasks, the less accurate versions are also fine. For other applications, the intrinsics may not be sufficient.
+#+END_QUOTE
+
+
+*** shared / local memory
+    https://juliagpu.gitlab.io/CUDAnative.jl/lib/device/cuda/#Shared-Memory-1
+
+    why use it?
+    http://tdesell.cs.und.edu/lectures/cuda_3.pdf
+    "If we can get these threads to collaborate in loading their global memory into shared memory, we could speed up the global memory access time by 4x (as each thread would load 1/4th the global memory in parallel with the rest). In general, if our blocks are sized N x N, we can get an Nx reduction of global memory traffic."
+
+    $\to$ no point in buffering to shared if we're not gonna use it
+
+
+*** use with CuArrays / tutorial
+    https://juliagpu.gitlab.io/CuArrays.jl/tutorials/generated/intro/
+    https://juliagpu.gitlab.io/CuArrays.jl/tutorials/generated/intro/
+    CUDAdrv.@profile bench_gpu1!(y_d, x_d)
+
+*** grid size limits
+    https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#features-and-technical-specifications
+
+    grid x: int32 (2^31-1)
+    grid y: int16 (65535)
+    grid z: int16 (65535)
+
+    block x: 1024
+    block y: 1024
+    block z: 64
+
+    threads per block (x * y * z): 512 / 1024
+
+    warp size: 32
+*** warp order
+    https://devtalk.nvidia.com/default/topic/498823/warp-layout-in-a-2d-thread-block-/
+
+    According to the programming guide, it goes by x_index first, then y_index, then z_index. For the purposes of warp grouping threads don't have 3 dimensional indices, they just go by 1. This index is given by threadId = threadIdx.x+blockDim.x*(threadIdx.y+blockDim.y*threadIdx.z). Every 32 threads of this index is a new warp.
+
+** Testing
+   https://docs.julialang.org/en/v1/stdlib/Test/index.html
+
+** other stuff
+   https://discourse.julialang.org/t/whats-the-status-of-image-convolutions-on-cpu-gpu/6093
+   https://www.reddit.com/r/Julia/comments/e2ophj/what_is_the_state_of_gpu_convolution/
+   https://juliaimages.org/latest/
+   https://github.com/FluxML/NNlib.jl
+   https://github.com/JuliaGPU/CuArrays.jl
+   https://github.com/JuliaGPU/CUDAnative.jl
+   https://juliagpu.gitlab.io/CuArrays.jl/tutorials/generated/intro/
+   https://github.com/JuliaGPU/GPUArrays.jl
+
+** Julia macros
+  https://docs.julialang.org/en/v1/manual/metaprogramming/index.html
+** slow CuArrays reduction
+   https://github.com/JuliaGPU/CuArrays.jl/issues/362
+** remote NVVP
+   yay cuda-toolkit
+   /opt/cuda/bin/nvvp
+
+   https://devblogs.nvidia.com/cuda-pro-tip-nvprof-your-handy-universal-gpu-profiler/
+   https://www.parallel-computing.pro/index.php/9-cuda/54-remote-profiling-with-nvidia-visual-profiler-on-a-slurm-based-cluster
+
+   nvprof --analysis-metrics -o quantprof1.nvprof julia quantprof1.jl
+   nvprof -f -o quantprof1.nvprof julia quantprof1.jl
+   nvprof --analysis-metrics -o  nbody-analysis.nvprof FILE --benchmark -numdevices=2 -i=1
+
+   nvprof --profile-from-start off -f -o quantprof2.nvvp --analysis-metrics --unified-memory-profiling off --replay-mode disabled ../julia-1.3.0/bin/julia quantprof2.jl
+
+   nvprof --profile-from-start off -f --export-profile quantprof2.nvvp --unified-memory-profiling off --replay-mode disabled -a global_access,shared_access,branch,instruction_execution,pc_sampling ../julia-1.3.0/bin/julia quantprof2.jl
+
+                                global_access: global access
+                                shared_access: shared access
+                                branch: divergent branch
+                                instruction_execution: instruction execution
+                                pc_sampling: pc sampling, available only for GM20X+
+
+
+in expression starting at /data/scratch/jhgilles/6.338/quantprof2.jl:222
+unknown function (ip: 0x7f34c5d9bacc)
+unknown function (ip: 0x7f34c5d9d25e)
+unknown function (ip: 0x7f34c5e096ef)
+unknown function (ip: 0x7f34c5e03709)
+cuLaunchKernel at /usr/lib/x86_64-linux-gnu/libcuda.so (unknown line)
+macro expansion at /data/scratch/jhgilles/.julia/packages/CUDAapi/CCgJL/src/call.jl:40 [inlined]
+macro expansion at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/error.jl:121 [inlined]
+cuLaunchKernel at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/libcuda.jl:966
+unknown function (ip: 0x7f34c81081e4)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2141 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2305
+#350 at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/execution.jl:97
+macro expansion at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/execution.jl:63 [inlined]
+macro expansion at ./gcutils.jl:91 [inlined]
+macro expansion at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/execution.jl:61 [inlined]
+pack_arguments at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/execution.jl:40
+unknown function (ip: 0x7f34c810784d)
+
+** nsight
+   Nsight Systems:
+│
+│ For improved usability, launch Julia under the Nsight Systems profiler:
+│ $ nsys launch -t cuda,cublas,cudnn,nvtx julia
+
+   local: /opt/cuda/nsight-compute-2019.5.0/nv-nsight-cu
+
+   remote:
+   . julia-setup.sh
+   https://docs.nvidia.com/nsight-compute/NsightComputeCli/index.html
+
+   the issue: mismatched cuda versions.
+
+   i'ma install a raw julia install and see if that works
+   ...yup
+
+   https://docs.nvidia.com/nsight-compute/NsightCompute/index.html#profiler-report
+
+   . julia-setup.sh
+   cd 6.338
+   /usr/local/cuda/NsightCompute-1.0/nv-nsight-cu-cli -o profile --section InstructionStats --section MemoryWorkloadAnalysis --section SchedulerStats --section SourceCounters --section SpeedOfLight --section WarpStateStats --section ComputeWorkloadAnalysis --section LaunchStats --section Occupancy -c 4 -f ../julia-1.3.0/bin/julia quantprof1.jl
+
+   scp jhgilles@tig-slurm.csail.mit.edu:/data/scratch/jhgilles/6.338/\*.nsight-cuprof-report ./
+
+   /opt/cuda/nsight-compute-2019.5.0/nv-nsight-cu
+
+   https://docs.nvidia.com/nsight-compute/2019.1/pdf/NsightComputeCli.pdf
+
+** tvm TOPI / conv
+   https://github.com/apache/incubator-tvm/blob/master/topi/python/topi/cuda/conv2d.py
+   https://github.com/apache/incubator-tvm/blob/master/topi/python/topi/cuda/conv2d_direct.py
+
+
+
+   https://docs.tvm.ai/tutorials/optimize/opt_conv_cuda.html
+   https://docs.tvm.ai/tutorials/optimize/opt_conv_cuda.html#sphx-glr-tutorials-optimize-opt-conv-cuda-py
+
+   out_size = (in_size - kernel + 2*pad) // stride + 1
+
+   - each block is for some (x,y), computes (block_factor x block_factor) region of output along (out_channel, batch)
+   - grabs a chunk of (step x block_factor) from both inputs; along (in_channel x batch) for input, (in_channel x out_channel) for kernel
+   - thread tiling scheme: i don't entirely understand it.
+     - splits along vthreads -- instead of walking threads along (1,2,3,4), they take strided jumps to avoid memory bank conflicts.
+     - how many threads are there actually though?
+       - how many to you need to max out an SM?
+         - only 128-256:
+           https://www.researchgate.net/publication/299869714_Meta-programming_and_auto-tuning_in_the_search_for_high_performance_GPU_code
+       - can multiple blocks execute on the same SM?
+         - yes: https://devtalk.nvidia.com/default/topic/399313/blocks-per-multiprocessor/
+       - how many registers are there per SM?
+         -
+   - reductions are per-thread
+
+   https://stackoverflow.com/questions/4391162/cuda-determining-threads-per-block-blocks-per-grid
+
+   We further split the workload from a thread block to individual threads. To avoid *memory bank conflict*, we use virtual thread to split the area into 4 parts, and then tile into 8x8 grids. Therefore, shown in the figure below, each thread computes 4 strided grids, where size of each grid is 4 x 4.
+
+   https://stackoverflow.com/questions/3841877/what-is-a-bank-conflict-doing-cuda-opencl-programming
+
+   So if each thread in a halfwarp accesses successive 32bit values there are no bank conflicts. An exception from this rule (every thread must access its own bank) are broadcasts: If all threads access the same address, the value is only read once and broadcasted to all threads (for GT200 it has to be all threads in the halfwarp accessing the same address, iirc fermi and AMD gpus can do this for any number of threads accessing the same value).
+
+   https://tvm.apache.org/2017/08/22/Optimize-Deep-Learning-GPU-Operators-with-TVM-A-Depthwise-Convolution-Example
+
+** CUDA programming guide
+   https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html
+
+   https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#performance-guidelines
+
+*** SIMT architecture
+   https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#simt-architecture
+
+   > The term warp originates from weaving, the first parallel thread technology.
+
+*** performance
+    Performance optimization revolves around three basic strategies:
+
+    - Maximize parallel execution to achieve maximum utilization;
+    - Optimize memory usage to achieve maximum memory throughput;
+    - Optimize instruction usage to achieve maximum instruction throughput.
+
+    fix whatever the bottleneck is, using the profiler.
+
+*** parallel execution
+     - parallel streams
+     - async operations
+     - check occupancy
+
+*** memory throughput
+     minimize low-bandwidth transfers
+
+*** global memory
+    Global memory instructions support reading or writing words of size equal to 1, 2, 4, 8, or 16 bytes. Any access (via a variable or a pointer) to data residing in global memory compiles to a single global memory instruction if and only if the size of the data type is 1, 2, 4, 8, or 16 bytes and the data is naturally aligned (i.e., its address is a multiple of that size).
+
+    For structures, the size and alignment requirements can be enforced by the compiler using the alignment specifiers __align__(8) or __align__(16), such as ...
+
+*** 2d arrays
+    BaseAddress + width * ty + tx
+
+    For these accesses to be fully coalesced, both the width of the thread block and the width of the array must be a multiple of the warp size.
+
+*** local memory
+    Arrays for which it cannot determine that they are indexed with constant quantities,
+    Large structures or arrays that would consume too much register space,
+    Any variable if the kernel uses more registers than available (this is also known as register spilling).
+
+*** compute 6.1
+
+    A multiprocessor consists of:
+
+    - 128 (6.1 and 6.2) CUDA cores for arithmetic operations,
+    - 32 (6.1 and 6.2) special function units for single-precision floating-point transcendental functions,
+    - 4 (6.1 and 6.2) warp schedulers.
+
+    When a multiprocessor is given warps to execute, it first distributes them among its schedulers. Then, at every instruction issue time, each scheduler issues one instruction for one of its assigned warps that is ready to execute, if any.
+
+    A multiprocessor has:
+
+    - a read-only constant cache that is shared by all functional units and speeds up reads from the constant memory space, which resides in device memory,
+    - a unified L1/texture cache for reads from global memory of size 24 KB (6.0 and 6.2) or 48 KB (6.1),
+    - a shared memory of size 64 KB (6.0 and 6.2) or 96 KB (6.1).
+
+    The unified L1/texture cache is also used by the texture unit that implements the various addressing modes and data filtering mentioned in Texture and Surface Memory.
+
+**** Shared Memory
+
+    Shared memory has 32 banks that are organized such that successive 32-bit words map to successive banks. Each bank has a bandwidth of 32 bits per clock cycle.
+
+    A shared memory request for a warp does not generate a bank conflict between two threads that access any address within the same 32-bit word (even though the two addresses fall in the same bank): In that case, for read accesses, the word is broadcast to the requesting threads and for write accesses, each address is written by only one of the threads (which thread performs the write is undefined).
+
+* WIP what's the most efficient way to pack bits on a GPU?
+  presumably there's some lane-shuffle thing we can do.
+
+  on cpu:
+  https://stackoverflow.com/questions/26200961/whats-the-fastest-way-to-pack-32-0-1-values-into-the-bits-of-a-single-32-bit-va
+
+  answer: use a reduction via OR or an SIMD intrinsic.
+
+  on gpu: we have access to warp vote to 32 bits, we should use that, then reduce to 64 bits.
+  https://stackoverflow.com/questions/39488441/how-to-pack-bits-efficiently-in-cuda
+
+* WIP sketch axes
+* TODO float quantization
+  constant static LUTs for values + binary search
+
+  on gpu: that + simple cuda code for indices
+
+* TODO simple quantization on gpu
 * TODO translate existing python code
+** TODO define structs w/ generics for sizes?
+* TODO NWHC conv in Dense
 * TODO establish baselines (cpu / gpu)
-* TODO simple quantization
 * TODO simple CPU convolution
 * TODO simple GPU convolution
 * TODO fast quantization
 * TODO fast convolvution (copy from TVM setup)
+* TODO could you emphasize reducing error for large-magnitude weights?
+* WIP tensor indexing notation
+  http://homepages.engineering.auckland.ac.nz/~pkel015/SolidMechanicsBooks/Part_II/07_3DElasticity/07_3DElasticity_01_3D_Index.pdf
+
+  $A = [ a_{ij} ]$, $i$ rows, $j$ columns
+
+  https://en.wikipedia.org/wiki/Parry_Moon#Holors
+  (neat, but nobody uses it)
+
+  http://www.iaeng.org/publication/WCE2010/WCE2010_pp1829-1833.pdf
+
+* TODO what do I cite for pullback notation?
+* TODO macros for dividing stuff up into grids in julia
+* WIP MNIST (or fashion MNIST) training
+  https://github.com/FluxML/model-zoo/
+* WIP fix CuArrays.has_cudnn
+  ~conda install cudnn~
+* WIP fix foreigncall error
+  https://github.com/FluxML/Flux.jl/issues/947
+  https://github.com/FluxML/Flux.jl/issues/817
+
+** TODO note this in writeup
+* TODO find models
+  https://github.com/FluxML/Metalhead.jl
+* old notes
+  idea: define data structure QuantArray / CuQuantArray which holds a packed, quantized array + its scalar constants
+  the goal: never write floats to global memory.
+
+  "neural networks are cool! there's probably one racially profiling you as we speak."
+** reading
+*** general stuff on julia GPU convolutions
+*** TODO quantization fitting operations
+*** TODO TVM conv impl + diagram
+*** TODO sketch different convolution strategies + data layouts
+    - idea: packing chunks of arrays into tiles? would that help at all?
+*** TODO how does bank conflict work again?
+*** TODO julia CUDAnative conv impl
+*** TODO is there something like Halide for julia?
+*** TODO cudanative lecture
+*** TODO CUDA caching
+*** TODO env setup
+*** TODO ask about paper length
+*** TODO baseline impl
+*** TODO fast quantize
+
+** impl
+*** TODO baseline
+*** TODO bring in networks from my LTH work
+*** TODO channelwise activations
+*** TODO rearrange outputs / fuse next operations
+    We'll be memory-limited, so any extra computation we can do to make the outputs more friendly to read would be good.
+    I wonder if we can fuse multiple convolutions in-warp or in-block so that we don't need to write anything but outputs to
+    global memory.
+*** TODO some halide-like helpers?
+    https://github.com/JuliaPolyhedra/Polyhedra.jl
+    https://inf.ethz.ch/personal/fukudak/polyfaq/polyfaq.html
+    http://isl.gforge.inria.fr//user.html
+*** TODO labeledtensors?
+
+* extra
+** TODO parseval nets instead of batchnorm?
+** TODO try messing w/ weight quantization factors, maybe their proposed schema doesn't work? what was it?
+*** TOOO optimize along with activation constants?
+** TODO discrete optimization?
+** TODO integrate ODEs somehow?
+** TODO linsolve along whole batch instead of minibatch?
+** TODO rearrange layers to quantize better?
+   a lO [[cite:QuantFriendlyMobileNet]]
+** TODO Lottery Ticket for gained accuracy?
+** TODO take advantaged of pruned stuff to rearrange kernels somehow?
+** TODO LR schedules: try cyclic LR after quantizing
+** TODO knowledge distillation?
+** TODO optimization: don't compute all for strided convolution?
+* DONE least squares in julia
+  CLOSED: [2019-12-12 Thu 14:15]
+  https://stanford.edu/class/ee103/julia_slides/julia_least_squares_slides.pdf
+  https://stackoverflow.com/questions/22399794/qr-decomposition-to-solve-linear-systems-in-cuda
+
+  \ doesn't work in cuda
+  - use cpu?
+  - gels batched?
+    https://github.com/JuliaGPU/CuArrays.jl/blob/cccb7b507501c1c8c7933cae8388170985f2fbb9/src/blas/wrappers.jl#L1674
+
+  just use cpu.
+* DONE what nonlinearity do they use in pre-training?
+  CLOSED: [2019-12-12 Thu 17:13]
+  relu before activations. duhhh
+* DONE how to add non-trainable parameters?
+  CLOSED: [2019-12-13 Fri 16:18]
+  just don't use them.
+* TODO store alphas during training
+* TODO can we do depthwise convs using ConvDims?
+  https://github.com/FluxML/NNlib.jl/blob/136aa8285d3f00375c65eef90f3559af6f70c69a/src/dim_helpers/DenseConvDims.jl
+  https://github.com/FluxML/NNlib.jl/blob/master/src/conv.jl
+
+  no, apparently :/
+  and CuArrays doesn't support strides...
+
+  let's just transpose during the binarization op?
+  arrange it so that all the channels for a region get brought in
+
+* TODO how to efficiently reading CUDA memory?
+
+* DONE NCHW vs NHWC
+  CLOSED: [2019-12-13 Fri 18:29]
+  https://carlthome.github.io/posts/nhwc-vs.-nchw%20/
+  https://jhui.github.io/2017/03/07/TensorFlow-Perforamnce-and-advance-topics/
+
+  NCHW is *slightly* faster on GPU
+
+  no option for NHWC in julia
+  ...just account for it in the kernel :)
+
+* TODO fuse activation into ABCConv
+
+* WIP julia reflection / metaprogramming
+  https://docs.julialang.org/en/v1/devdocs/reflection/index.html
+
+* note: activation quantization parameters are not trained for reproduction accuracy!
+  weird....
+* note: don't use cuda intrinsics on CPU! it crashes the (jupyter) kernel!
+* TODO check for sync errors between kernel executions
+* write-up: NCHW vs NHWC
+* TODO fix conv padding!
+* TODO preallocate outputs in net?
+* TODO 64-bit kernels
+* TODO increase occupancy in quantization kernel
+* TODO does the loss from NHWC output balance the gain from NHWC input?
+* TODO figure out how to tell Julia about possible fusions??
+* TODO shared memory for kernel / application tile
+* TODO fully fused kernel (because kernel is small!)
+  have intermediate op as parameter (w/ constants for vals?)
+  or just impl batchnorm manually
+
+  kernel size: PHWOMN = 1 * 3 * 3 * 64 * 3 * 3 * 8 bytes bytes ~= 41kb
+
+  hm, that's pretty big. 40 8-byte reads per block member.
+
+  could we use cuda constant memory? https://cuda-programming.blogspot.com/2013/01/what-is-constant-memory-in-cuda.html
+
+  no: reads from alternate locations are serialized.
+
+
+
+* DONE how to pass array of arrays to CUDA?
+  CLOSED: [2019-12-14 Sat 22:41]
+  just add another dimension lol
+
+* WIP why is stuff missing from the profiler output??
+  https://devtalk.nvidia.com/default/topic/1010691/visual-profiler-and-nvprof/nvprof-error-code-139-but-memcheck-ok/
+
+  segfault in cudaapi on replay (maybe the GC?)
+
+  in expression starting at /data/scratch/jhgilles/6.338/quantprof2.jl:222
+unknown function (ip: 0x7f34c5d9bacc)
+unknown function (ip: 0x7f34c5d9d25e)
+unknown function (ip: 0x7f34c5e096ef)
+unknown function (ip: 0x7f34c5e03709)
+cuLaunchKernel at /usr/lib/x86_64-linux-gnu/libcuda.so (unknown line)
+macro expansion at /data/scratch/jhgilles/.julia/packages/CUDAapi/CCgJL/src/call.jl:40 [inlined]
+macro expansion at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/error.jl:121 [inlined]
+cuLaunchKernel at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/libcuda.jl:966
+unknown function (ip: 0x7f34c81081e4)
+_jl_invoke at /buildworker/worker/package_linux64/build/src/gf.c:2141 [inlined]
+jl_apply_generic at /buildworker/worker/package_linux64/build/src/gf.c:2305
+#350 at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/execution.jl:97
+macro expansion at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/execution.jl:63 [inlined]
+macro expansion at ./gcutils.jl:91 [inlined]
+macro expansion at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/execution.jl:61 [inlined]
+pack_arguments at /data/scratch/jhgilles/.julia/packages/CUDAdrv/3EzC1/src/execution.jl:40
+unknown function (ip: 0x7f34c810784d)
+
+  https://github.com/JuliaGPU/CUDAapi.jl
+
+  jhgilles@vcuda-0:/data/scratch/jhgilles/6.338$ nvprof --profile-from-start off -f -o quantprof2.nvvp --analysis-metrics --unified-memory-profiling off --replay-mode disabled ../julia-1.3.0/bin/julia quantprof2.jl
+
+* TODO fuse / unfuse functions for indexing
+* TODO check occupancy
+* TODO int16 indices to reduce occupancy
+* DONE julia cuda popcnt
+  CLOSED: [2019-12-15 Sun 14:38]
+  it's just `popc`
+* DONE dumb conv impl
+* note: conv w/ padding is much slower than without??
+  1.169 ms vs 936.431 μs
+  ...oh it's just because my input is small (x,y); that's a significant amount more compute
+* note: annoying error message on global definition?
+* CANCELED check return type of vote_ballot()?
+* note: flux implements actual convolution instead of cross-correlation! dammit
+* WIP shared memory cache
+  https://github.com/JuliaGPU/CUDAnative.jl/blob/5dbdc8961abbdefc5d61efc3b84a90c47c6cd811/src/device/cuda/memory_shared.jl
+  > Note that the amount of dynamic shared memory needs to specified when launching the kernel.
+  that's IMPORTRANT TJKLALSFHSKJLGFAH:DGSHADGFSGFXFJfj
+
+  need `shmem` in @cuda
+  https://github.com/JuliaGPU/CUDAnative.jl/blob/b55dee83f0cf4e51c937e449cb30f5e0101c846e/src/execution.jl
+
+* TODO -> barberpole indexing
+  to avoid bank conflicts.
+
+* note: type dispatch:
+  abstract arguments don't slow things. (containers of abstract types are boxed though.)
+
+  supertype() and subtypes() exist
+
+  every type has 1 supertype
+* note: my tech stack was tall, and at times rather wobbly
+* TODO clean profiling files up
