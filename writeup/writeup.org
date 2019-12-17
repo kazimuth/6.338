@@ -92,8 +92,7 @@ We implement and evaluate a high-performance implementation of the ABCNets quant
 
 In the past decade, deep neural networks have achieved rapid uptake in many fields
 and applications. However, deep neural networks require large amounts
-of memory and compute to execute. This prevents them from being deployed in resource
--constrained environments like mobile devices [[citep:MobileNets]]. In addition,
+of memory and compute to execute. This prevents them from being deployed in resource-constrained environments like mobile devices [[citep:MobileNets]]. In addition,
 network training is expensive; full
 development of a new deep network architecture has been estimated to have an equivalent
 carbon footprint to the lifetime footprint of five consumer cars [[citep:EmitCarbon]].
@@ -115,7 +114,7 @@ Research in training networks at these high degrees of quantization is ongoing. 
 
 It was therefore very exciting when, a few years ago, [[citet:BinarizedNeuralNetworks]] introduced a novel quantization technique that can be implemented without custom hardware.
 Their technique requires binarizing network weights and activations to the values $\pm 1$.
-They then pack the binary weights and activations into machine words, representing $-1$ with ~0~ bits. They introduce a novel algorithm based on the ~xnor~ and ~popcnt~ machine instructions, which allows taking the dot product of a pair of packed vectors in less than 5 machine instructions.
+They then pack the binary weights and activations into machine words, representing $-1$ with ~0~ bits. They introduce a novel algorithm (described in the next section) based on the ~xnor~ and ~popcnt~ machine instructions, which allows taking the dot product of a pair of packed vectors in less than 5 machine instructions.
 This greatly reduces the necessary compute and memory needed to evaluate binarized networks. Unfortunately, it also imposes significant accuracy losses; it's not obvious how to train binarized networks. Several papers (such as the XNORNets paper from [[citet:XNORNets]]) proposed improved training schemes. These reduce the error due to binarization, but still leave large gaps.
 
 The paper this work implements ([[citet:ABCNets]]) introduced "ABCNets" (Accurate Binary Convolutional Networks), which allow using multiple bits to represent weights and activations,
@@ -130,11 +129,10 @@ while still using the efficient ~xnor/popcnt~ algorithm for convolution. In theo
 
 (Results are from [[citet:ABCNets]], evaluating the Resnet18 model on the ImageNet dataset.)
 
-However, [[citet:ABCNets]] did not actually implement their convolution algorithm using packed machine words. Instead, they used full-precision floating-point numbers and applied equivalent quantization algorithms in floating-point space. This should give nearly identical results, modulo 32-bit floating point precision. However, it does not tell us whether ABCNets are actually faster than full-precision networks. It's hard to make the decision about whether to quantize without knowing the resulting accuracy improvement.
+However, [[citet:ABCNets]] did not actually implement their convolution algorithm using packed machine words. Instead, they used full-precision floating-point numbers and applied equivalent quantization algorithms in floating-point space. This should give nearly identical results, modulo 32-bit floating point precision. However, it does not tell us whether ABCNets are actually faster than full-precision networks on real hardware. It's hard to make the decision about whether to quantize without knowing the resulting accuracy improvement.
 
 In this paper, we write an implementation of the ABCNets algorithm for GPU, using the high-performance scientific programming language Julia and its extensions to support the CUDA programming model.
 
-* Related Work
 ** The BNN algorithm
 [[citet:BinarizedNeuralNetworks]] introduced an efficient algorithm for evaluation of Binarized Neural Networks (or BNNs). This technique requires binarizing network weights and activations to the values $+1$ and $-1$.
 
@@ -307,13 +305,14 @@ The $u_i$ parameters of the original weight quantization must be chosen a priori
 We see that the error lowers quickly as $M$ increases, and then plateaus. It's possible that
 the error could be decreased further by training the $u_i$ parameters; that's a direction for future work.
 
-The activation quantization must be trained through gradient descent. To test this, we train the quantization function on blocks of 10x10x10x10 normally distributed random activations, minimizing the MSE relative to the true activations using the Adam optimizer [[citep:Adam]]. In addition, we vary the number of bases available ($N$). (Note that each gradient descent step gives a *different* block of activations to approximate, with the same distribution parameters. This models varying activations during evaluation.
+The activation quantization must be trained through gradient descent. To test this, we train the quantization function on blocks of 10x10x10x10 normally distributed random activations, minimizing the MSE relative to the true activations using the Adam optimizer [[citep:Adam]]. In addition, we vary the number of bases available ($N$). (Note that each gradient descent step gives a *different* block of activations to approximate, with the same distribution parameters. This models varying activations during evaluation.)
 
 #+ATTR_LATEX: :width 5in
 [[./plots/acttraining.png]]
 
 We see that gradient descent is quite good at finding values for the activation quantization parameters. It's non-obvious that gradient should work in this case, when using the straight-through estimator, but it does.
-Also note that there isn't any MSE term in the actual loss during training; instead, the quantization is trained only to minimize the overall loss of the network. It's an open question whether adding other terms might improve performance.
+
+(Do note that there isn't any MSE term in the actual loss during training; instead, the quantization is trained only to minimize the overall loss of the network. It's an open question whether adding other terms might improve performance.)
 
 Finally, we implemented a floating point ~ABCCrossCor~ layer, which encapsulates quantizing weights and activations and then convolving (in floating point). Note that the operation called convolution in most neural network frameworks is actually cross correlation, since it doesn't flip the kernel along the X and Y axis. Flux bucks this trend by naming things correctly, and we follow suit.
 
@@ -439,6 +438,8 @@ After that, we'd like to optimize the kernels further, and then integrate our bi
 One optimization we're particularly curious about would be fusing the convolution, batchnorm, relu, and quantization kernels. This would mean that only packed bits would need to be written to global memory, with all floating-point numbers used in the kernel kept in shared memory, minimizing the necessary global memory bandwidth.
 
 One other interesting direction of development would be the development of a tool like CUB (https://nvlabs.github.io/cub/) for Julia/CUDAnative. CUB provides a number of thread-cooperative algorithms that can be used directly within CUDA kernels. Having access to a tool like that would make CUDAnative significantly easier to use, and allow faster development of high-performance kernels.
+
+Our code is available at https://github.com/kazimuth/6.338.
 
 #+LATEX: \newpage
 #+LATEX: \bibliography{everything.bib}

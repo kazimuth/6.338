@@ -1,4 +1,4 @@
-% Created 2019-12-16 Mon 23:37
+% Created 2019-12-16 Mon 23:42
 % Intended LaTeX compiler: pdflatex
 \documentclass[12pt]{article}
 \usepackage[utf8]{inputenc}
@@ -99,12 +99,11 @@ We implement and evaluate a high-performance implementation of the ABCNets quant
 10 December 2019
 
 \section{Introduction and Related Work}
-\label{sec:org3dd8475}
+\label{sec:org5b781ec}
 
 In the past decade, deep neural networks have achieved rapid uptake in many fields
 and applications. However, deep neural networks require large amounts
-of memory and compute to execute. This prevents them from being deployed in resource
--constrained environments like mobile devices \citep{MobileNets}. In addition,
+of memory and compute to execute. This prevents them from being deployed in resource-constrained environments like mobile devices \citep{MobileNets}. In addition,
 network training is expensive; full
 development of a new deep network architecture has been estimated to have an equivalent
 carbon footprint to the lifetime footprint of five consumer cars \citep{EmitCarbon}.
@@ -126,7 +125,7 @@ Research in training networks at these high degrees of quantization is ongoing. 
 
 It was therefore very exciting when, a few years ago, \citet{BinarizedNeuralNetworks} introduced a novel quantization technique that can be implemented without custom hardware.
 Their technique requires binarizing network weights and activations to the values \(\pm 1\).
-They then pack the binary weights and activations into machine words, representing \(-1\) with \texttt{0} bits. They introduce a novel algorithm based on the \texttt{xnor} and \texttt{popcnt} machine instructions, which allows taking the dot product of a pair of packed vectors in less than 5 machine instructions.
+They then pack the binary weights and activations into machine words, representing \(-1\) with \texttt{0} bits. They introduce a novel algorithm (described in the next section) based on the \texttt{xnor} and \texttt{popcnt} machine instructions, which allows taking the dot product of a pair of packed vectors in less than 5 machine instructions.
 This greatly reduces the necessary compute and memory needed to evaluate binarized networks. Unfortunately, it also imposes significant accuracy losses; it's not obvious how to train binarized networks. Several papers (such as the XNORNets paper from \citet{XNORNets}) proposed improved training schemes. These reduce the error due to binarization, but still leave large gaps.
 
 The paper this work implements (\citet{ABCNets}) introduced "ABCNets" (Accurate Binary Convolutional Networks), which allow using multiple bits to represent weights and activations,
@@ -145,14 +144,12 @@ ABCNets & 5 & 5 & \textbf{65.0\%} & \textbf{85.9\%}\\
 
 (Results are from \citet{ABCNets}, evaluating the Resnet18 model on the ImageNet dataset.)
 
-However, \citet{ABCNets} did not actually implement their convolution algorithm using packed machine words. Instead, they used full-precision floating-point numbers and applied equivalent quantization algorithms in floating-point space. This should give nearly identical results, modulo 32-bit floating point precision. However, it does not tell us whether ABCNets are actually faster than full-precision networks. It's hard to make the decision about whether to quantize without knowing the resulting accuracy improvement.
+However, \citet{ABCNets} did not actually implement their convolution algorithm using packed machine words. Instead, they used full-precision floating-point numbers and applied equivalent quantization algorithms in floating-point space. This should give nearly identical results, modulo 32-bit floating point precision. However, it does not tell us whether ABCNets are actually faster than full-precision networks on real hardware. It's hard to make the decision about whether to quantize without knowing the resulting accuracy improvement.
 
 In this paper, we write an implementation of the ABCNets algorithm for GPU, using the high-performance scientific programming language Julia and its extensions to support the CUDA programming model.
 
-\section{Related Work}
-\label{sec:org0de2562}
 \subsection{The BNN algorithm}
-\label{sec:org7d3d87d}
+\label{sec:org5cdd643}
 \citet{BinarizedNeuralNetworks} introduced an efficient algorithm for evaluation of Binarized Neural Networks (or BNNs). This technique requires binarizing network weights and activations to the values \(+1\) and \(-1\).
 
 They observe that vectors of \(\pm 1\) can be packed into machine words by representing \(+1\) with 1s and \(-1\) with 0.
@@ -241,7 +238,7 @@ This dot-product primitive can be extended to implement matrix multiplication an
 (Note: From the above example, you can see that the output of this product of binary weights and activations is \textbf{not} binary: it must be re-quantized if we want to perform the same operation on its result. This will be important later.)
 
 \subsection{The ABCNets algorithm}
-\label{sec:org8c7f7d9}
+\label{sec:orga5f3235}
 
 \citet{ABCNets} introduced the ABCNets algorithm, which represents weights and activations using \textbf{linear combinations of binary weight bases}. The underlying observation is fairly straightforward.
 
@@ -261,7 +258,7 @@ weights and activations respectively.
 (This is the algorithm we implement in Julia / CUDA, extended to convolution.)
 
 \subsubsection{Weight Approximation}
-\label{sec:org76762e2}
+\label{sec:org48ebecc}
 The problem of approximating the weights is finding the weight masks \(\Wa_i\) and coefficients \(\alpha_i\) for \(i \in 1..M\).
 
 \citet{ABCNets} suggest keeping full-precision weights around during training, and finding weight masks such that the mean squared error between the approximated weights
@@ -285,7 +282,7 @@ $$\overline{\Wv} = \overline{F_{u_i}(\Wv)} = \overline{\Wa}$$
 Where \(\lgrad{\xv}\) denotes the gradient of the loss with respect to \(\xv\). That is, they pass the gradient of the approximated weights "straight through" to the real weights. This approximation lacks theoretical backing but works well in practice.
 
 \subsubsection{Activation Approximation}
-\label{sec:org5e8417e}
+\label{sec:org9f24f8d}
 The problem of approximating the activations is finding the activation masks \(\Aa_j\) and coefficients \(\beta_j\) for \(j \in 1..N\). Running a least-squares solver for every network evaluation would be too slow, so \citet{ABCNets} define a simple quantization operation:
 
 $$\mathrm{actbin}_v(x) : \mathbb{R} \to \{-1, 1\} = \begin{cases}
@@ -310,7 +307,7 @@ $$\lgrad{x} = \lgrad{v} = \lgrad{\mathrm{actbin}_v(x)} * \begin{cases}
 Which is equivalent to STE when the input is not clipped, and 0 when the input is clipped. (This choice is motivated further in the original paper.)
 
 \subsection{Julia}
-\label{sec:orgce9fd77}
+\label{sec:org7d203ab}
 The Julia programming language \citep{julialang} is a programming language designed for elegant, high-performance scientific computing.
 In this project, in addition to the base Julia language, we leverage the CuArrays.jl, CUDAnative.jl \citep{CUDAnativeJL}, and Flux.jl \citep{FluxJL} libraries.
 
@@ -319,9 +316,9 @@ CUDAnative is an interface which allows Julia code to be compiled to run on the 
 We implement the ABCNets paper using a mix of Flux, CuArrays, and CUDAnative.
 
 \section{Implementation}
-\label{sec:orgd1a04f1}
+\label{sec:orgd957aac}
 \subsection{Floating Point}
-\label{sec:org077598e}
+\label{sec:org680b5df}
 To make sure we understood the source paper and to have a baseline for comparison, we first implemented the ABCNets paper using floating
 point numbers. We defined the underlying algorithms using CuArrays, and then defined Flux layers for the weight quantization and
 activation algorithms, as well as their adjoints.
@@ -337,14 +334,15 @@ The \(u_i\) parameters of the original weight quantization must be chosen a prio
 We see that the error lowers quickly as \(M\) increases, and then plateaus. It's possible that
 the error could be decreased further by training the \(u_i\) parameters; that's a direction for future work.
 
-The activation quantization must be trained through gradient descent. To test this, we train the quantization function on blocks of 10x10x10x10 normally distributed random activations, minimizing the MSE relative to the true activations using the Adam optimizer \citep{Adam}. In addition, we vary the number of bases available (\(N\)). (Note that each gradient descent step gives a \textbf{different} block of activations to approximate, with the same distribution parameters. This models varying activations during evaluation.
+The activation quantization must be trained through gradient descent. To test this, we train the quantization function on blocks of 10x10x10x10 normally distributed random activations, minimizing the MSE relative to the true activations using the Adam optimizer \citep{Adam}. In addition, we vary the number of bases available (\(N\)). (Note that each gradient descent step gives a \textbf{different} block of activations to approximate, with the same distribution parameters. This models varying activations during evaluation.)
 
 \begin{center}
 \includegraphics[width=5in]{./plots/acttraining.png}
 \end{center}
 
 We see that gradient descent is quite good at finding values for the activation quantization parameters. It's non-obvious that gradient should work in this case, when using the straight-through estimator, but it does.
-Also note that there isn't any MSE term in the actual loss during training; instead, the quantization is trained only to minimize the overall loss of the network. It's an open question whether adding other terms might improve performance.
+
+(Do note that there isn't any MSE term in the actual loss during training; instead, the quantization is trained only to minimize the overall loss of the network. It's an open question whether adding other terms might improve performance.)
 
 Finally, we implemented a floating point \texttt{ABCCrossCor} layer, which encapsulates quantizing weights and activations and then convolving (in floating point). Note that the operation called convolution in most neural network frameworks is actually cross correlation, since it doesn't flip the kernel along the X and Y axis. Flux bucks this trend by naming things correctly, and we follow suit.
 
@@ -379,7 +377,7 @@ Note that the first convolution is \textbf{not} quantized, which is standard in 
 At full precision, this network achieves 93.1\% top-1 accuracy on the FashionMNIST dataset (when trained with the Adam optimizer using Flux default settings, input values in the range \((0, 1)\), and no data augmentation). When quantized and fine-tuned, the network achieves 91.0\% top-when accuracy, with M=N=3 bases for weights and activations.
 
 \subsection{Packed Binary Operations}
-\label{sec:orgc1de960}
+\label{sec:org83ca12c}
 
 The bulk of the work was spent implementing binary packing and convolution kernels using CUDAnative. CUDAnative imitates the CUDA C++ API. When implementing a CUDA program, the challenge is generally to achieve full utilization of all of the compute resources and memory bandwidth available on the device. There are many choices to be made, including how to map an input space to CUDA threads and CUDA blocks, how to coordinate between threads, and how to take advantage of shared memory.
 
@@ -403,7 +401,7 @@ This kernel was more interesting to optimize, since there was room for re-using 
 After that, we modified the iteration pattern of different threads to avoid bank conflicts. The shared memory cache has 32 access ports, arranged such that all the threads in a warp access adjacent 32-bit values, all the threads can read from separate ports. However, if some threads access the same value, those accesses must be serialized. We arranged our threads using what we termed a "barber pole pattern", where each thread started its iteration on a separate input region, and would remain mostly non-overlapping throughout.
 
 \subsection{Benchmarks}
-\label{sec:org5328ccc}
+\label{sec:orgf142f29}
 We benchmarked our kernels across a range of image sizes. Here's a comparison of our naive (floating-point) convolution kernel, and the corresponding quantized convolution kernel:
 
 \begin{center}
@@ -421,7 +419,7 @@ CUDNN beats even the binary version of our kernel! Why is that? Well, partially,
 Still, we've shown that this algorithm can provide significant speedups over full precision. We hypothesize that we can wring major additional speedups out of the code once the issues preventing the use of shared memory are fixed; but for now, leave that to future work.
 
 \section{Julia, CUDAnative.jl and Flux.jl: Benefits and Drawbacks}
-\label{sec:org2243b63}
+\label{sec:orge49cc42}
 In this section we reflect on how using Julia, CUDAnative, and Flux.
 
 Some aspects of development were smooth and easy. Flux and CuArrays in particular provide an extremely elegant interface. For example, the floating-point implementation of equation (1) can be essentially copied from the equation listing, modulo some rearranging of axes:
@@ -470,7 +468,7 @@ These issues led to our being unable to use shared memory. We had to reimplement
 CUDAnative is extremely powerful, and allows many low-level operations to be implemented in ways that synchronize harmoniously with Flux and CuArrays. Unfortunately, some issues in the tech stack prevented us from using it to its full potential. Still, working on the project was very informative, and we look forward to leveraging this tech stack in the future once some of the kinks are ironed out.
 
 \section{Future work}
-\label{sec:orgfb3256a}
+\label{sec:org10fb8c9}
 If we were to continue working on this project, we would first want to get shared memory working, perhaps by running the code under \texttt{nvprof} on several CUDA-enabled machines until we can find one that works.
 After that, we'd like to optimize the kernels further, and then integrate our binary and floating point implementations, and see what optimizations that enables.
 One optimization we're particularly curious about would be fusing the convolution, batchnorm, relu, and quantization kernels. This would mean that only packed bits would need to be written to global memory, with all floating-point numbers used in the kernel kept in shared memory, minimizing the necessary global memory bandwidth.
