@@ -85,21 +85,22 @@
 {\LARGE\sc \@title\par}
 %\bottomtitlebar % \vskip 0.1in %  minus
 \ificlrfinal
-    %% JHG: this isn't an ICLR paper!
-    %\lhead{Published as a conference paper at ICLR 2020}
-    \lhead{Interim report}
+    \lhead{Published as a conference paper at ICLR 2020}
     \def\And{\end{tabular}\hfil\linebreak[0]\hfil
             \begin{tabular}[t]{l}\bf\rule{\z@}{24pt}\ignorespaces}%
   \def\AND{\end{tabular}\hfil\linebreak[4]\hfil
             \begin{tabular}[t]{l}\bf\rule{\z@}{24pt}\ignorespaces}%
     \begin{tabular}[t]{l}\bf\rule{\z@}{24pt}\@author\end{tabular}%
 \else
+    %% JHG: this isn't an ICLR paper!
+    %\lhead{Interim report}
        \lhead{Under review as a conference paper at ICLR 2020}
    \def\And{\end{tabular}\hfil\linebreak[0]\hfil
             \begin{tabular}[t]{l}\bf\rule{\z@}{24pt}\ignorespaces}%
   \def\AND{\end{tabular}\hfil\linebreak[4]\hfil
             \begin{tabular}[t]{l}\bf\rule{\z@}{24pt}\ignorespaces}%
-    \begin{tabular}[t]{l}\bf\rule{\z@}{24pt}Anonymous authors\\Paper under double-blind review\end{tabular}%
+    %\begin{tabular}[t]{l}\bf\rule{\z@}{24pt}Anonymous authors\\Paper under double-blind review\end{tabular}%
+    \begin{tabular}[t]{l}\bf\rule{\z@}{24pt}\@author\end{tabular}%
 \fi
 \vskip 0.3in minus 0.1in}}
 
@@ -172,7 +173,11 @@ plus      -0.5ex minus -.2ex}{0.5ex plus
 % Less leading in most fonts (due to the narrow columns)
 % The choices were between 1-pt and 1.5-pt leading
 %\def\@normalsize{\@setsize\normalsize{11pt}\xpt\@xpt} % got rid of @ (MK)
-\def\normalsize{\@setsize\normalsize{11pt}\xpt\@xpt}
+
+% JHG:
+%\def\normalsize{\@setsize\normalsize{11pt}\xpt\@xpt}
+\def\normalsize{\@setsize\normalsize{12pt}\xpt\@xpt}
+
 \def\small{\@setsize\small{10pt}\ixpt\@ixpt}
 \def\footnotesize{\@setsize\footnotesize{10pt}\ixpt\@ixpt}
 \def\scriptsize{\@setsize\scriptsize{8pt}\viipt\@viipt}

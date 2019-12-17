@@ -1393,7 +1393,9 @@ unknown function (ip: 0x7f34c810784d)
 * note: activation quantization parameters are not trained for reproduction accuracy!
   weird....
 * note: don't use cuda intrinsics on CPU! it crashes the (jupyter) kernel!
-* TODO check for sync errors between kernel executions
+* DONE check for sync errors between kernel executions
+  CLOSED: [2019-12-16 Mon 17:52]
+  no need: https://stackoverflow.com/questions/11888772/when-to-call-cudadevicesynchronize
 * write-up: NCHW vs NHWC
 * TODO fix conv padding!
 * TODO preallocate outputs in net?
@@ -1413,7 +1415,6 @@ unknown function (ip: 0x7f34c810784d)
   could we use cuda constant memory? https://cuda-programming.blogspot.com/2013/01/what-is-constant-memory-in-cuda.html
 
   no: reads from alternate locations are serialized.
-
 
 
 * DONE how to pass array of arrays to CUDA?
@@ -1480,3 +1481,7 @@ unknown function (ip: 0x7f34c810784d)
   every type has 1 supertype
 * note: my tech stack was tall, and at times rather wobbly
 * TODO clean profiling files up
+* DONE julia citation files
+  CLOSED: [2019-12-16 Mon 10:59]
+* TODO chart performance vs input size
+* TODO new quantprof scripts

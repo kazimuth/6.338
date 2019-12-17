@@ -1,10 +1,9 @@
-% Created 2019-12-16 Mon 10:40
+% Created 2019-12-16 Mon 23:37
 % Intended LaTeX compiler: pdflatex
-\documentclass[11pt]{article}
+\documentclass[12pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
-\usepackage{grffile}
 \usepackage{longtable}
 \usepackage{wrapfig}
 \usepackage{rotating}
@@ -15,11 +14,15 @@
 \usepackage{capt-of}
 \usepackage{hyperref}
 \usepackage{minted}
-% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\ifdefined\orglatexfragmentpreview
+\else
 \usepackage{iclr2020_conference,times}
 \input{math_commands.tex}
+\fi
 \usepackage{hyperref}
 \usepackage{url}
+% uhhh
+\renewcommand*{\tableofcontents}{}
 \newcommand{\xv}[0]{\mathbf{x}}
 \newcommand{\yv}[0]{\mathbf{y}}
 \newcommand{\zv}[0]{\mathbf{z}}
@@ -28,6 +31,20 @@
 \newcommand{\gv}[0]{\mathbf{g}}
 \newcommand{\hv}[0]{\mathbf{h}}
 \newcommand{\hxo}[0]{\mathbf{h}_0}
+\newcommand{\dd}[1]{\mathrm{d}#1}
+\newcommand{\piv}[0]{\boldsymbol{\pi}}
+\newcommand{\av}[0]{\mathbf{a}}
+\newcommand{\bv}[0]{\mathbf{b}}
+\newcommand{\alv}[0]{\mathbf{\alpha}}
+\newcommand*{\Oc}[0]{\mathcal{O}}
+\newcommand*{\obsint}[1]{\langle #1 \rangle}
+\newcommand*{\Wv}[0]{\mathbf{W}}
+\newcommand*{\Av}[0]{\mathbf{A}}
+\newcommand*{\Wa}[0]{\widetilde{\mathbf{W}}}
+\newcommand*{\Aa}[0]{\widetilde{\mathbf{A}}}
+\newcommand*{\approxident}{%
+\mathrel{\vcenter{\offinterlineskip
+\hbox{$\sim$}\vskip-.35ex\hbox{$\sim$}}}}
 \usepackage{mathtools}
 \DeclarePairedDelimiter\abs{\lvert}{\rvert}%
 \DeclarePairedDelimiter\norm{\lVert}{\rVert}%
@@ -41,18 +58,31 @@
 \let\oldnorm\norm
 \def\norm{\@ifstar{\oldnorm}{\oldnorm*}}
 \makeatother
-\newcommand*{\approxident}{%
-\mathrel{\vcenter{\offinterlineskip
-\hbox{$\sim$}\vskip-.35ex\hbox{$\sim$}\vskip}}}
-% uhhh
-\renewcommand*{\tableofcontents}{}
-\iclrfinaltrue
+\newcommand*\lgrad[1]{\overline{#1}}
+\newcommand*\tderiv[2]{\frac{\mathrm{d}#1}{\mathrm{d}#2}}
+\newcommand*\pderiv[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\NN}[0]{\textsc{nn}}
+\newcommand{\transpose}[1]{#1 ^\top}
+\newcommand{\dotp}[2]{\transpose{#1} #2}
+\newcommand{\hadamard}[0]{\odot}
+\renewcommand*{\tableofcontents}[0]{}
+\newcommand\steeq{\;\,\stackrel{\mathclap{\mbox{\textsc{ste}}}}{=}\,\;}
+\usepackage{ifluatex, ifxetex}
+\ifx\ifxetex\ifluatex\else
+\usepackage{fontspec}
+\setmonofont[Scale=0.8]{Fira Code}
+\usepackage{geometry}
+\addtolength{\topmargin}{-.6in}
+\addtolength{\textheight}{1.2in}
+\usemintedstyle{manni}
+\fi
+\graphicspath{/home/radical/dev/6.338/writeup/}
 \author{James Gilles}
-\date{01 November 2019}
-\title{The Effect of Pruning on Adversarial Vulnerability}
+\date{10 December 2019}
+\title{A High-Performance Implementation of ABCNets in Flux.jl}
 \hypersetup{
  pdfauthor={James Gilles},
- pdftitle={The Effect of Pruning on Adversarial Vulnerability},
+ pdftitle={A High-Performance Implementation of ABCNets in Flux.jl},
  pdfkeywords={},
  pdfsubject={},
  pdfcreator={Emacs 26.3 (Org mode 9.2.6)}, 
@@ -62,340 +92,392 @@
 \maketitle
 \tableofcontents
 
-\today
+\begin{abstract}
+We implement and evaluate a high-performance implementation of the ABCNets quantization algorithm in Julia with with Flux.jl and CUDAnative.jl.
+\end{abstract}
 
-\section{The effect of pruning in standard training on adversarial accuracy}
-\label{sec:org708dca6}
+10 December 2019
 
-The simplest question I've been trying to answer is: what is the effect of deep neural network pruning on adversarial vulnerability?
-Does it provide any form of defense, or increase vulnerability?
+\section{Introduction and Related Work}
+\label{sec:org3dd8475}
 
-Adversarial examples present thorny theoretical and practical problems.
-Models that are not resilient to small perturbations are not safe to deploy in many situations;
-moreover, they highlight our fundamental lack of understanding of the internal function of deep neural networks.
-Developing defenses against them is critical for improving the trustworthiness of deep networks.
+In the past decade, deep neural networks have achieved rapid uptake in many fields
+and applications. However, deep neural networks require large amounts
+of memory and compute to execute. This prevents them from being deployed in resource
+-constrained environments like mobile devices \citep{MobileNets}. In addition,
+network training is expensive; full
+development of a new deep network architecture has been estimated to have an equivalent
+carbon footprint to the lifetime footprint of five consumer cars \citep{EmitCarbon}.
 
-One key defense, originally identified in \citep{TowardsResistantAdversarial}, is simply adding more capacity to networks: doubling or quadrupling
-the number of channels in every layer of a network. This improves resilience, but bloats network model sizes and increases runtime cost.
+To address this issue, researchers are looking into techniques for \textbf{model compression}.
+Model compression attempts to reduce the amount of memory or computation needed to evaluate a model. Typically this imposes some loss of accuracy or performance; the challenge is to
+reduce resource requirements while maintaining performance.
+Model compression is an old approach, stretching far back into the literature \citep{OptimalBrainDamage}. For a survey of the field, see \citep{CompressionSurvey}
 
-One approach to ameliorating these issues is network pruning: zeroing weights or whole channels, to reclaim space, and potentially speed up network
-evaluation. Unfortunately, pruning can often reduce network accuracy; it's also possible it would make networks more or less vulnerable to adversaries.
-Several other works have attempted to apply various kinds of pruning/compression in the adversarial setting
-\citep{ToCompressOrnot} \citep{RobustnessOrCompression} \citep{DefensiveQuantization}.
+In this paper we examine a specific style of model compression, \textbf{model quantization}. Deep neural networks are typically trained and evaluated using IEEE 754 32-bit floating point numbers \citep{IEEE754}. 32-bit floats have a large dynamic range and enough precision for general-purpose computing.
+However, in practice, the weights and activations of deep neural networks have been found to fall into small, predictable distributions.
+This suggests that they require less than 32 bits of information to accurately represent.
+This insight leads to the field of model quantization, which investigates different representations for model weights and activations.
 
-The difference in my approach is that I have access to models trained using "network rewinding", as introduced by \citep{StabilizingLTH}. This is a
-new style of network pruning that, while computationally expensive, can actually \textbf{increase} network accuracy, and also retain accuracy longer into the pruning
-regimen.
+Simple quantization techniques substitute floating point numbers with less range, such as 16-bit IEEE 754 floats, or Google's bfloat16 \citep{bfloat16}. More aggressive techniques quantize values to 8, 4, 2, or even single bits, and may use floating-point or fixed-point numbers.
+(Quantizing to a single bit is termed "binarization", and reflects the observation that artificial neurons can be essentially "on" or "off".)
 
-Here I'll try attacking some pruned networks over the course of training, comparing their standard and adversarial accuracies.
+Research in training networks at these high degrees of quantization is ongoing. However, they all share a problem: they require hardware support to be reasonably efficient. The long development times required for hardware makes evaluating their performance difficult; and the need for that hardware at inference time makes deploying them even more difficult.
 
-I'm comparing two types of pruning, iterated fine-tuning and iterated rewinding. The networks are ResNetV1-20s trained on CIFAR10. The attack I'm using is
-untargeted Projected Gradient Descent, using 5 iterations, the \(l_\infty\) norm, and an epsilon of .004. \footnote{This is the smallest reasonable epsilon to use, corresponding to changing each 8-bit RGBA channel in the image by a maximum of 1. Larger epsilons saturate adversarial accuracy immediately, making them not useful for comparison. Epsilon is applied on an image with channel values in the range \([0,1]\), and clipped; that is, the attack is applied before data normalization.]
+It was therefore very exciting when, a few years ago, \citet{BinarizedNeuralNetworks} introduced a novel quantization technique that can be implemented without custom hardware.
+Their technique requires binarizing network weights and activations to the values \(\pm 1\).
+They then pack the binary weights and activations into machine words, representing \(-1\) with \texttt{0} bits. They introduce a novel algorithm based on the \texttt{xnor} and \texttt{popcnt} machine instructions, which allows taking the dot product of a pair of packed vectors in less than 5 machine instructions.
+This greatly reduces the necessary compute and memory needed to evaluate binarized networks. Unfortunately, it also imposes significant accuracy losses; it's not obvious how to train binarized networks. Several papers (such as the XNORNets paper from \citet{XNORNets}) proposed improved training schemes. These reduce the error due to binarization, but still leave large gaps.
 
-We see that adversarial accuracy starts out very low and is \textbf{reduced} by additional pruning, similar to standard accuracy.
-
-Note: to read the x-axis, know that each pruning iteration reduces network density by approximately 20\%, and then fully retrains the network.
-See figure \ref{fig:marginal} for a plot of network density over the course of pruning.
-
-\newpage
-
-To compare how quickly adversarial accuracy is reduced compared to standard accuracy, we can normalize all training runs by their starting
-accuracy.
-
-We can now see that adversarial accuracy drops off \textbf{faster} than standard accuracy over the course of network pruning. It's also more chaotic,
-for reasons that aren't clear.
-
-Note: currently these experiments don't show the entire accuracy regime. The available data only goes to 20 rewinding/finetuning iterations,
-in which time accuracy has not dropped to 0.
-
-Over this data axis, rewinding doesn't seem to have any consistent advantage over fine-tuning.
-
-We can visualize the changes made to the input images; see figure \ref{fig:sample}.}
-
-We can also examine the influence of changing attack parameters on a particular pruned network.
-Here, I fix the pruning iteration at 10, and vary the parameters of PGD.
-
-This smooth continuum of epsilon is, of course, not realistic for real-world attacks, since most image formats quantize
-all channels to 8 bits. However, it's useful to understand the dynamics of the network.
-
-We can see that increasing epsilon continuously degrades performance, while increasing PGD strength saturates fairly quickly. Interestingly,
-lottery-ticket-style rewinding does seem to have a small advantage in a particular epsilon regime, even when the data are normalized by starting accuracy.
-However, this advantage vanishes as the adversary increases in strength.
-
-So we see that lottery-ticket-style training with rewinding does not provide any meaningful defense on its own.
-However, it's an open question whether it can be usefully combined with other adversarial defenses.
-
-\section{Work for the next month}
-\label{sec:org7c08006}
-
-"Winning tickets" are networks that can be trained in a pruned state, often yielding higher
-ending accuracy. They're found by training the network fully, pruning the final network,
-and then rewinding to a step early in training.
-
-Now that I've got my infrastructure set up, it should be relatively straightforward to
-attempt combining this strategy with adversarial training. I'd like to investigate the
-potential existence of adversarial lottery tickets,
-as well as effects of swapping training regimes before / after pruning.
-
-If we use oneshot pruning, we can draw a dividing line at the rewinding operation, and use one type of training
-beforehand, and a possibly different style of training. We can contextualize this set of possible experiments as a box, with the post-training regime on the x
-axis and the pre-training regime on the y axis:
+The paper this work implements (\citet{ABCNets}) introduced "ABCNets" (Accurate Binary Convolutional Networks), which allow using multiple bits to represent weights and activations,
+while still using the efficient \texttt{xnor/popcnt} algorithm for convolution. In theory, this allows a clean trade-off between accuracy loss and runtime performance:
 
 \begin{center}
-\begin{tabular}{lll}
- & standard post-training & adversarial post-training\\
+\begin{tabular}{lrrll}
+Quantization & Weight bits & Activation bits & Top-1 & Top-5\\
 \hline
-standard pre-training & \textbf{standard LTH} & \\
-adversarial pre-training &  & \\
+Full-Precision & 32 & 32 & 69.3\% & 89.2\%\\
+BNNs & 1 & 1 & 42.2\% & 67.1\%\\
+XNORNets & 1 & 1 & 51.2\% & 73.2\%\\
+ABCNets & 5 & 5 & \textbf{65.0\%} & \textbf{85.9\%}\\
 \end{tabular}
 \end{center}
 
-The questions I'd like to answer fit into this box. Standard LTH training is the top-left quadrant: standard
-training for both regimes.
+(Results are from \citet{ABCNets}, evaluating the Resnet18 model on the ImageNet dataset.)
 
-\subsection{Question 1: are there "winning tickets" in the context of adversarial training?}
-\label{sec:org839be2e}
+However, \citet{ABCNets} did not actually implement their convolution algorithm using packed machine words. Instead, they used full-precision floating-point numbers and applied equivalent quantization algorithms in floating-point space. This should give nearly identical results, modulo 32-bit floating point precision. However, it does not tell us whether ABCNets are actually faster than full-precision networks. It's hard to make the decision about whether to quantize without knowing the resulting accuracy improvement.
 
-That is, can we find networks that recover \textbf{adversarial} accuracy when trained
-adversarially, pruned,
-and then rewound and re-trained adversarially?
+In this paper, we write an implementation of the ABCNets algorithm for GPU, using the high-performance scientific programming language Julia and its extensions to support the CUDA programming model.
+
+\section{Related Work}
+\label{sec:org0de2562}
+\subsection{The BNN algorithm}
+\label{sec:org7d3d87d}
+\citet{BinarizedNeuralNetworks} introduced an efficient algorithm for evaluation of Binarized Neural Networks (or BNNs). This technique requires binarizing network weights and activations to the values \(+1\) and \(-1\).
+
+They observe that vectors of \(\pm 1\) can be packed into machine words by representing \(+1\) with 1s and \(-1\) with 0.
+Given a pair of vectors \(\av, \bv \in \{-1,+1\}^{64}\), and their packed equivalents \texttt{packed\_a} and \texttt{packed\_b}, the dot product of the vectors (\(\dotp{\av}{\bv}\)) can be computed as follows:
+\begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true,escapeinside=||]{julia}
+dot_packed(packed_a :: UInt64, packed_b :: UInt64) :: UInt64 =
+    2 * popcount(not(xor(a, b))) - bitcount(UInt64)
+\end{minted}
+Where:
+\begin{itemize}
+\item \texttt{popcount} is the standard "population count" machine instruction, which returns the number of \(1\) bits in a word
+\item \texttt{bitcount} returns the number of bits in a datatype,
+\item \texttt{not} and \texttt{xor} operate bitwise.
+\end{itemize}
+
+Why does this work? First, observe the equivalence between multiplication of \((\pm 1) * (\pm 1)\) and \texttt{not(xor(0/1, 0/1))}:
 
 \begin{center}
-\begin{tabular}{lll}
- & standard post-training & adversarial post-training\\
+\begin{tabular}{ll}
+\((\pm 1) * (\pm 1)\) & \texttt{not(xor(0/1, 0/1))}\\
 \hline
-standard pre-training & standard LTH & \\
-adversarial pre-training &  & \textbf{Question 1}\\
+\(-1 * -1 = +1\) & \texttt{not(xor(0, 0)) = 1}\\
+\(-1 * +1 = -1\) & \texttt{not(xor(0, 1)) = 0}\\
+\(+1 * -1 = -1\) & \texttt{not(xor(1, 0)) = 0}\\
+\(+1 * +1 = +1\) & \texttt{not(xor(1, 1)) = 1}\\
 \end{tabular}
 \end{center}
 
-\citep{RobustnessOrCompression} attempted to answer this question, but failed because they didn't use rewinding;
-\citep{anonymous2020boosting} also attempted to answer the question without rewinding, instead using hyperparameter search
-to find functional networks.
+For a pair of bits, \texttt{not(xor(a, b))} performs the equivalent of multiplication.
+Thus, across a pair of machine words, \texttt{not(xor(packed\_a, packed\_b))} is the equivalent of elementwise multiplication, i.e. the Hadamard product \(\av \odot \bv\).
 
-I'll need to sweep over the rewinding iteration, because the necessary iteration has been found to vary between tasks and architectures.
+To compute the dot product from the Hadamard product, we simply need to sum its elements:
 
-Independent variables:
-\begin{itemize}
-\item Oneshot pruning rate
-\item Rewinding iteration
-\end{itemize}
+$$\dotp{\av}{\bv} = \sum_{i=1}^{64} (\av \odot \bv)_i$$
 
-Dependent variables:
-\begin{itemize}
-\item Adversarial accuracy
-\end{itemize}
+For the sake of example, assume we're using 8-bit integers instead of 64. If we have:
 
-Possible outcomes:
-\begin{itemize}
-\item \textbf{Winning tickets recover pre-pruning accuracy.}
-This outcome has practical implications for adversarial training.
+\begin{align*}
+  \av \hadamard \bv &= \begin{bmatrix}
+      +1\\-1\\-1\\+1\\+1\\-1\\+1\\+1
+       \end{bmatrix}
+\end{align*}
 
-\item \textbf{Winning tickets do not recover pre-pruning accuracy}.
-This outcome would be an interesting counterexample to the lottery ticket phenomenon.
-\end{itemize}
+Then
 
-I have some preliminary data suggesting that tickets do exist, but I'd like to evaluate that more systematically.
+$$\dotp{\av}{\bv} = +1 -1 -1 +1 +1 -1 +1 +1 = +2$$
 
-\subsection{Question 2: can I re-train standard lottery tickets in the adversarial setting?}
-\label{sec:org59c5664}
-Adversarial training is expensive; next we can ask, is it possible to use adversarially training with a standard winning ticket,
-in order to gain the benefits of lottery ticket training?
+Addition is commutative, so we can rearrange this sum to split up the positive and negative elements:
+
+$$\dotp{\av}{\bv} = \underbrace{+1 +1 +1 +1 +1}_{\text{positive elements}}
+\underbrace{-1 -1 -1}_{\text{negative elements}} = +2$$
+
+Now, assume we have \(\mathrm{count}_{(+1)}\), the count of the positive elements, and \(\mathrm{count}_{(-1)}\), the count of the negative elements. The above sum becomes:
+
+\begin{align*}
+\dotp{\av}{\bv} &= (+1) * \mathrm{count}_{(+1)} + (-1) *
+   \mathrm{count}_{(-1)} \\
+&= \mathrm{count}_{(+1)} -
+   \mathrm{count}_{(-1)}
+\end{align*}
+
+This is where \texttt{popcnt} comes from. If
+\texttt{packed\_prod = not(xor(packed\_a, packed\_b))}, then:
+
+\begin{align*}
+\mathrm{count}_{(+1)} &= \texttt{popcnt(packed\_prod)} \\
+\mathrm{count}_{(-1)} &= \texttt{bitcnt(packed\_prod) - popcnt(packed\_prod)}
+\end{align*}
+
+Putting it all together:
+
+\begin{align*}
+\dotp{\av}{\bv} &= \sum \av \hadamard \bv \\
+                &= \mathrm{count}_{(+1)} - \mathrm{count}_{(-1)} \\
+                &= \texttt{popcnt(packed\_prod) -
+                   (bitcnt(packed\_prod) - popcnt(packed\_prod))} \\
+                &= \texttt{2 * popcnt(packed\_prod) - bitcnt(packed\_prod)}
+\end{align*}
+
+This allows us to compute the dot product of up to 64 elements at a time using only 3 machine instructions.
+
+This can be extended to vectors that don't fit into machine words. Simply pack the bits into a sequence of machine words, padding with zero at the end. Then replace \texttt{bitcnt(packed\_prod)} in the above equation with the element count of your vector.
+
+This dot-product primitive can be extended to implement matrix multiplication and convolution/cross-correlation in the straightforward way.
+
+(Note: From the above example, you can see that the output of this product of binary weights and activations is \textbf{not} binary: it must be re-quantized if we want to perform the same operation on its result. This will be important later.)
+
+\subsection{The ABCNets algorithm}
+\label{sec:org8c7f7d9}
+
+\citet{ABCNets} introduced the ABCNets algorithm, which represents weights and activations using \textbf{linear combinations of binary weight bases}. The underlying observation is fairly straightforward.
+
+Looking at matrix multiplication -- which can be generalized to batched convolution --
+we approximate weights and activations as follows:
+$$\Wv \approxident \Wa = \alpha_1 \Wa_1 + \alpha_2 \Wa_2 + ... + \alpha_M \Wa_M = \sum_i^M \alpha_i \Wa_i$$
+$$\Av \approxident \Aa = \beta_1 \Aa_1 + \beta_2 \Aa_2 + ... + \beta_N \Aa_N = \sum_j^N \beta_j \Aa_j $$
+Where \(\Wa_i\) and \(\Aa_j\) are binarized versions of weights and activations, learned during training.
+(The algorithms to select the weights and activations are described in the following subsections.)
+Then, we have:
+$$\Wv\Av \approxident \Wa\Aa = (\sum_i^M \alpha_i \Wa_i) (\sum_j^N \beta_j \Aa_j) \\
+                            = \sum_i^M \sum_j^N \alpha_i \beta_j \Wa_i \Aa_j$$
+That is, the product of the approximated weights and activations can be
+computed in \(M*N\) XNOR-matrix-multiplications, where \(M\) and \(N\) are the bit-widths of
+weights and activations respectively.
+
+(This is the algorithm we implement in Julia / CUDA, extended to convolution.)
+
+\subsubsection{Weight Approximation}
+\label{sec:org76762e2}
+The problem of approximating the weights is finding the weight masks \(\Wa_i\) and coefficients \(\alpha_i\) for \(i \in 1..M\).
+
+\citet{ABCNets} suggest keeping full-precision weights around during training, and finding weight masks such that the mean squared error between the approximated weights
+and the real weights is minimized:
+
+\begin{equation}\alpha_i, \Wa_i = \arg \min_{\alpha_i, \Wa_i} \norm{\Wv - \sum_i \alpha_i \Wa_i}^2\end{equation}
+
+This could be trained through gradient descent. However, once the network is trained, the weights are fixed; so the authors suggest using a training algorithm that is more expensive
+during training but less expensive during evaluation. They fix the weight masks:
+
+$$\Wa_i = F_{u_i}(\Wv) = \mathrm{sign}(\Wv - \mathrm{mean}(\Wv) + u_i \, \mathrm{std}(\Wv))$$
+
+Where \(u_i\) is a fixed factor chosen a-priori. Then, (1) becomes a system of overdetermined linear equations, which can be solved using least-squares. They repeat this operation
+during each training step, and use the masks from the final training step for the final network.
+
+It is not obvious how to propagate gradients through this quantization operation, since it is a piecewise constant function without meaningful derivatives.
+Following \citet{BinarizedNeuralNetworks}, \citet{ABCNets} use the "straight-through estimator":
+
+$$\overline{\Wv} = \overline{F_{u_i}(\Wv)} = \overline{\Wa}$$
+
+Where \(\lgrad{\xv}\) denotes the gradient of the loss with respect to \(\xv\). That is, they pass the gradient of the approximated weights "straight through" to the real weights. This approximation lacks theoretical backing but works well in practice.
+
+\subsubsection{Activation Approximation}
+\label{sec:org5e8417e}
+The problem of approximating the activations is finding the activation masks \(\Aa_j\) and coefficients \(\beta_j\) for \(j \in 1..N\). Running a least-squares solver for every network evaluation would be too slow, so \citet{ABCNets} define a simple quantization operation:
+
+$$\mathrm{actbin}_v(x) : \mathbb{R} \to \{-1, 1\} = \begin{cases}
+   +1 & \mathrm{clip}(x + v, 0, 1) > 0.5 \\
+   -1 & \mathrm{otherwise}
+\end{cases}$$
+
+Then, for each basis, we create a separate learned parameter \(v_i\).
+The basis is then this operation applied to all elements of the input, with that parameter:
+
+$$\Aa_i = \mathrm{actbin}_{v_i}.(\Av)$$
+
+The parameters \(v_i\) and the coefficients \(\beta_i\) in the sum are then learned during training using gradient descent.
+
+The gradient through this quantization (for any single activation) is:
+
+$$\lgrad{x} = \lgrad{v} = \lgrad{\mathrm{actbin}_v(x)} * \begin{cases}
+1 & x + v \in [0, 1] \\
+0 & \mathrm{otherwise}
+\end{cases}$$
+
+Which is equivalent to STE when the input is not clipped, and 0 when the input is clipped. (This choice is motivated further in the original paper.)
+
+\subsection{Julia}
+\label{sec:orgce9fd77}
+The Julia programming language \citep{julialang} is a programming language designed for elegant, high-performance scientific computing.
+In this project, in addition to the base Julia language, we leverage the CuArrays.jl, CUDAnative.jl \citep{CUDAnativeJL}, and Flux.jl \citep{FluxJL} libraries.
+
+CUDAnative is an interface which allows Julia code to be compiled to run on the GPU, similar to CUDA C++. CuArrays is a library for GPU-based array operations on top of CUDAnative. Flux is a machine learning framework that builds on that using a source-to-source automatic differentiation system, allowing operations that run across the GPU and CPU to be differentiated with little overhead beyond the actual computation needed for differentiation.
+
+We implement the ABCNets paper using a mix of Flux, CuArrays, and CUDAnative.
+
+\section{Implementation}
+\label{sec:orgd1a04f1}
+\subsection{Floating Point}
+\label{sec:org077598e}
+To make sure we understood the source paper and to have a baseline for comparison, we first implemented the ABCNets paper using floating
+point numbers. We defined the underlying algorithms using CuArrays, and then defined Flux layers for the weight quantization and
+activation algorithms, as well as their adjoints.
+
+To test the correctness of the weight quantization, we measured the MSE between quantized
+and unquantized weights for a given number of weight bases.
+The \(u_i\) parameters of the original weight quantization must be chosen a priori; inspired by the original paper, we simply used \(M\) values evenly spaced between \(-1.0\) and \(1.0\) (using only \(0.0\) in the \(M=1\) case.) We generated a normally distributed 10x10x10x10 block of weights. Given the true weights and \(u_i\), the \(\alpha\) parameters (and therefore the quantization error) are fully determined:
 
 \begin{center}
-\begin{tabular}{lll}
- & standard post-training & adversarial post-training\\
-\hline
-standard pre-training & standard LTH & \textbf{Question 2}\\
-adversarial pre-training &  & Question 1\\
-\end{tabular}
+\includegraphics[width=5in]{./plots/weighttraining.png}
 \end{center}
 
-\citep{anonymous2020boosting} attempted to answer this question, but, again, didn't use rewinding. They also varied the strength of the
-adversary in initial training (the number of PGD iterations), since a weak adversary is still much cheaper to compute than a strong adversary.
+We see that the error lowers quickly as \(M\) increases, and then plateaus. It's possible that
+the error could be decreased further by training the \(u_i\) parameters; that's a direction for future work.
 
-Independent variable:
-\begin{itemize}
-\item Whether training before pruning is adversarial or not.
-\item Pruning rate
-\item Pre-training adversary strength
-\end{itemize}
-
-Dependent variable:
-\begin{itemize}
-\item Adversarial accuracy
-\end{itemize}
-
-Possible outcomes:
-\begin{itemize}
-\item \textbf{Standard winning tickets reach the same accuracy} as adversarial winning tickets when
-retrained adversarially:
-This outcome has useful practical implications. It also would show that tickets are in some sense "general".
-
-\item \textbf{Weak-adversary winning tickets reach the same accuracy} as strong-adversary winning tickets when
-retrained adversarially:
-This result would replicate \citep{anonymous2020boosting} without (as much) expensive hyperparameter search.
-
-\item \textbf{Standard winning tickets reach a lower accuracy} as adversarial winning tickets when
-retrained adversarially:
-This outcome would show that tickets are not transferable between tasks.
-\end{itemize}
-
-\subsection{Question 3: can a standard training maintain the robustness of an adversarially-trained winning ticket?}
-\label{sec:orgd4a0873}
-We can also ask the inverse question: will an adversarially-robust winning ticket maintain robustness \footnote{"Robustness" is Madry's term for adversarial resilience, i.e., adversarial accuracy, roughly speaking.]} when retrained with a weaker
-(or, no) adversary?
+The activation quantization must be trained through gradient descent. To test this, we train the quantization function on blocks of 10x10x10x10 normally distributed random activations, minimizing the MSE relative to the true activations using the Adam optimizer \citep{Adam}. In addition, we vary the number of bases available (\(N\)). (Note that each gradient descent step gives a \textbf{different} block of activations to approximate, with the same distribution parameters. This models varying activations during evaluation.
 
 \begin{center}
-\begin{tabular}{lll}
- & standard post-training & adversarial post-training\\
-\hline
-standard pre-training & standard LTH & Question 2\\
-adversarial pre-training & \textbf{Question 3} & Question 1\\
-\end{tabular}
+\includegraphics[width=5in]{./plots/acttraining.png}
 \end{center}
 
-Independent variable:
-\begin{itemize}
-\item Whether training before pruning is adversarial or not.
-\item Pruning rate
-\item Post-training adversary strength
-\end{itemize}
+We see that gradient descent is quite good at finding values for the activation quantization parameters. It's non-obvious that gradient should work in this case, when using the straight-through estimator, but it does.
+Also note that there isn't any MSE term in the actual loss during training; instead, the quantization is trained only to minimize the overall loss of the network. It's an open question whether adding other terms might improve performance.
 
-Dependent variable:
-\begin{itemize}
-\item Adversarial accuracy
-\end{itemize}
+Finally, we implemented a floating point \texttt{ABCCrossCor} layer, which encapsulates quantizing weights and activations and then convolving (in floating point). Note that the operation called convolution in most neural network frameworks is actually cross correlation, since it doesn't flip the kernel along the X and Y axis. Flux bucks this trend by naming things correctly, and we follow suit.
 
-Possible outcomes:
-\begin{itemize}
-\item \textbf{Adversarial tickets do not need to be retrained adversarially} to maintain robustness:
-This would be a \textbf{very} interesting result. It has implications connected to the other work
-related to stability and basins of attraction going on in the lab.
+We built a simple network using this layer and trained it on the FashionMNIST \citep{FashionMNIST} dataset, which is a dataset somewhere between MNIST and CIFAR in difficulty. The network is described as follows:
 
-This would provide strong evidence for the lottery ticket hypothesis, suggesting that the basin of attraction found by early training
-determines most network properties.
+\begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true,escapeinside=||]{julia}
+N = 3
+M = 3
 
-\item \textbf{Strong adversarial tickets need only a weak post-training adversary} to maintain robustness:
-Similar to the above, this suggests that a strong adversary is only needed to find the initial basin of attraction, and a weak
-adversary is sufficient to stay in it.
+model = Chain(
+    CrossCor((3, 3), 1=>16, pad=(1,1)),
+    BatchNorm(16), Relu(), ABCCrossCor((3, 3), 16=>32, N, M, pad=(1,1)),
+    BatchNorm(32), Relu(), ABCCrossCor((3, 3), 32=>32, N, M, pad=(1,1)),
+    MaxPool((2,2)),
+    BatchNorm(32), Relu(), ABCCrossCor((3, 3), 32=>32, N, M, pad=(1,1)),
+    BatchNorm(32), Relu(), ABCCrossCor((3, 3), 32=>64, N, M, pad=(1,1)),
+    BatchNorm(64), Relu(), ABCCrossCor((3, 3), 64=>64, N, M, pad=(1,1)),
+    MaxPool((2,2)),
+    BatchNorm(64), Relu(), ABCCrossCor((3, 3), 64=>64, N, M, pad=(1,1)),
+    BatchNorm(64), Relu(), ABCCrossCor((3, 3), 64=>64, N, M, pad=(1,1)),
+    BatchNorm(64), Relu(), ABCCrossCor((3, 3), 64=>64, N, M, pad=(1,1)),
+    MaxPool((2,2)),
+    x -> reshape(x, :, size(x, 4)),
+    Relu(),
+    Dense(64 * 3 * 3, 10),
+    softmax,
+)
+\end{minted}
 
-\item \textbf{Adversarial tickets do need to be retrained adversarially} to maintain robustness:
-The null hypothesis. I strongly suspect this will be the case.
-\end{itemize}
+Note that the first convolution is \textbf{not} quantized, which is standard in quantization studies. Additionally, we perform the BatchNorm + ReLU + quantize operation after max pooling, rather than before, on the recommendation of the original paper.
 
-\subsection{Question 4: how small can I make an adversarially trained network?}
-\label{sec:orgc883343}
-\citep{TowardsResistantAdversarial} found that simply adding capacity to adversarially-trained networks can
-improve accuracy. They suggest conceiving of adversarial training as a min-max problem:
+At full precision, this network achieves 93.1\% top-1 accuracy on the FashionMNIST dataset (when trained with the Adam optimizer using Flux default settings, input values in the range \((0, 1)\), and no data augmentation). When quantized and fine-tuned, the network achieves 91.0\% top-when accuracy, with M=N=3 bases for weights and activations.
 
-$$\min_\theta \rho(\theta), \mathrm{where}\; \rho(\theta) = E_{(x,y)\sim D}[\max_{\delta \in S} L(\theta, x+\delta, y) ]$$
+\subsection{Packed Binary Operations}
+\label{sec:orgc1de960}
 
-where:
+The bulk of the work was spent implementing binary packing and convolution kernels using CUDAnative. CUDAnative imitates the CUDA C++ API. When implementing a CUDA program, the challenge is generally to achieve full utilization of all of the compute resources and memory bandwidth available on the device. There are many choices to be made, including how to map an input space to CUDA threads and CUDA blocks, how to coordinate between threads, and how to take advantage of shared memory.
 
-\(D\): training set
+First we implemented a quantization and packing kernel. This kernel is responsible for walking a \texttt{Float32} input tensor, applying a quantization operation to each input, and packing the resulting bits into a \texttt{UInt32} output tensor. We chose to pack into 32 bits instead of 64 in order to avoid \textbf{memory bank conflicts}, which will be discussed shortly. The quantization operation is user-supplied and fused into the kernel, which is easy to do because of how Julia and CUDAnative work.
 
-\(L\): network loss
+This kernel also transposes the input.
+All Flux operations for image processing keep their inputs in WHCB order: that is, x, y, channel, batch, with x walked first because Julia stores arrays in Fortran order. However, to ensure that results fit well into machine words we reordered this to PWHB in the kernel (packed channel, x, y, batch). In the case of multiple bases, the kernel splats the input out to a 5-dimensional array, PWHNB (packed channel, x, y, basis, batch).
+(Keeping track of all these dimensions can be confusing. To avoid mistakes, we named all functions and variables based on their dimensions; for instance, the helper function that dispatches our quantization kernel is called \texttt{quant\_pack\_WHCB\_PWHNB\_32}.)
 
-\(\theta\): parameters
+Bit-packing would seem to require communication between threads; that's slow. However, we were able to leverage the CUDA \texttt{vote\_ballot} intrinsic to make it extremely fast. CUDA thread blocks execute in "warps" of 32 threads; threads are grouped into warps by adjacent thread index.
+The \texttt{vote\_ballot} intrinsic takes a boolean and returns an integer with bits set for every element in a warp. If the thread passed in \texttt{true}, the bit is 1; if the thread passed in \texttt{false}, the bit is 0. By carefully arranging the threads within our kernel, we ensure that warps line up with the regions of the input tensor that map to packed \texttt{UInt32s} in the output tensor. Then we used \texttt{vote\_ballot} to perform the required bit-packing in a single operation.
 
-\(S \subseteq \mathbb{R}^d\), some space of allowed perturbations
+The performance of our quantization kernel is entirely bounded by global memory bandwidth. Within the kernel, there's very little communication or computation; just invocation of the quantization operation and a single \texttt{vote\_ballot} per output. The naive implementation turned out quite fast, so we didn't spend much time optimizing it.
 
-That is, adversarial training is the problem of empirically minimizing training loss, when an adversary is permitted to perturb all
-inputs in some subspace to maximize training loss. According to this view, adversarial training requires learning more complex
-decision boundaries; it's a harder problem.
+We also implemented an unpacking kernel to check correctness of the packing kernel. We didn't optimize the unpacking kernel, though, since it isn't needed during model training or evaluation.
 
-However, some more recent work (\citep{NotBugsFeatures}, \citep{HighFreqGeneralization}) has found that adversarial training can actually be thought of as training the network not to use "human-uninterpretable input features". This line of thinking suggests that many datasets have \textbf{predictive} input features that make no sense to humans. According to this view, it might be possible to prune adversarial networks even further than standard networks. Perhaps, then, the additional capacity is only needed during parameter search; or maybe the extra activations are needed,
-but the same or fewer numbers of parameters are required in adversarial training.
+Finally, we implemented a binary "convolution" kernel. This kernel performs convolution (actually cross-correlation) between multiple bases of weights and activations, multiplies the results by the corresponding coefficients, and writes its output to a \texttt{Float32} tensor. To start, we implemented this as simply as possible. To verify correctness, we compared the results against CUDNN. CUDNN is an library of CUDA-accelerated neural network kernels from NVIDIA; it serves as Flux's built-in implementation for convolution. We also implemented a naive floating-point convolution kernel, arranged in the same structure as the binary kernel, to serve as a comparison.
 
-By training Wide ResNets \citep{WideResNets} I can easily vary network width as a parameter.
+This kernel was more interesting to optimize, since there was room for re-using intermediate memory accesses. CUDA provides a programmer-controlled shared memory space to each thread block, which behaves similarly to L1 cache. Our kernel was arranged so that all the threads in a thread block would re-use the same region of the input tensor. We therefore extended our kernel by having all the threads in each block start by collaboratively reading the relevant input region to the shared cache.
 
-This brings us back to the bottom-right corner:
+After that, we modified the iteration pattern of different threads to avoid bank conflicts. The shared memory cache has 32 access ports, arranged such that all the threads in a warp access adjacent 32-bit values, all the threads can read from separate ports. However, if some threads access the same value, those accesses must be serialized. We arranged our threads using what we termed a "barber pole pattern", where each thread started its iteration on a separate input region, and would remain mostly non-overlapping throughout.
+
+\subsection{Benchmarks}
+\label{sec:org5328ccc}
+We benchmarked our kernels across a range of image sizes. Here's a comparison of our naive (floating-point) convolution kernel, and the corresponding quantized convolution kernel:
 
 \begin{center}
-\begin{tabular}{lll}
- & standard post-training & adversarial post-training\\
-\hline
-standard pre-training & standard LTH & Question 2\\
-adversarial pre-training & Question 3 & Question 1, \textbf{Question 4}\\
-\end{tabular}
+\includegraphics[width=5in]{./plots/varysizenocudnn.png}
 \end{center}
 
-Independent variables:
-\begin{itemize}
-\item Network width
-\item Pruning rate
-\end{itemize}
+This seems promising: lower precision quantization gives significant speedups. (Note the logarithmic time scale!) Unfortunately, it isn't the whole story. This is what happens when we add 32-bit CUDNN to the mix:
 
-Dependent variables:
-\begin{itemize}
-\item Adversarial accuracy
-\end{itemize}
+\begin{center}
+\includegraphics[width=5in]{./plots/varysizecudnn.png}
+\end{center}
 
-Possible outcomes:
-\begin{itemize}
-\item \textbf{Wider networks can be pruned to the same parameter count} as un-widened networks:
-Perhaps provides indirect evidence for \citep{NotBugsFeatures}.
-Has practical implications.
+CUDNN beats even the binary version of our kernel! Why is that? Well, partially, CUDNN is just an extremely well-optimized library; but more importantly, we were \textbf{unable to use CUDA shared memory}. We ran into issues with our technical stack that prevented shared memory from providing any performance benefit, and were unable to fix these issues in time, despite days of debugging. In the end, we were forced to rip out the optimizations managing shared memory and iteration performance.
 
-\item \textbf{Wider networks can be pruned of the same percentage of weights} as un-widened networks:
-The null hypothesis.
-\end{itemize}
+Still, we've shown that this algorithm can provide significant speedups over full precision. We hypothesize that we can wring major additional speedups out of the code once the issues preventing the use of shared memory are fixed; but for now, leave that to future work.
 
+\section{Julia, CUDAnative.jl and Flux.jl: Benefits and Drawbacks}
+\label{sec:org2243b63}
+In this section we reflect on how using Julia, CUDAnative, and Flux.
 
-\subsection{Engineering plan / timeline}
-\label{sec:org1760af4}
-I'll be attempting to answer the above question in the order written; Question 1 will require me to build out some more infrastructure,
-which I can then use to straightforwardly answer the other questions.
+Some aspects of development were smooth and easy. Flux and CuArrays in particular provide an extremely elegant interface. For example, the floating-point implementation of equation (1) can be essentially copied from the equation listing, modulo some rearranging of axes:
+\begin{minted}[frame=lines,linenos=true,mathescape,breaklines=true,escapeinside=||]{julia}
+function weight_masks(W, us)
+    dims = size(W)
+    W̅ = W .- mean(W)
+    std_W = std(W)
+    W̃s = cat((sign.(W̅ .+ (u * std_W)) for u in us)...,
+            dims=length(size(W)) + 1)
+    W̃s
+end
+function binarize_weights(W, us)
+    W̃s = weight_masks(W, us) # compute the masks of the weight tensor, given the u_i constants
+    dims = size(W)
+    Wv, W̃vs = reshape(W, :), reshape(W̃s, :, length(us)) # flatten weights and masks
+    αs = W̃vs \ Wv # least squares
+    W̃v = W̃vs * αs # compute result
+    W̃ = reshape(W̃v, dims...) # reshape output
+    # return (floating-point) approximated weights,
+    # and the discovered optimal coefficients
+    W̃, αs
+end
+Zygote.@adjoint function binarize_weights(W, us)
+    W̃ = binarize_weights(W, us)
+    # note: $\nabla$_W̃ should be read "gradient with respect to W̃"
+    function adjoint((|$\nabla$|_W̃, |$\nabla$|_αs))
+        # the straight-through estimator.
+        # (us are not trainable.)
+        (|$\nabla$|_W, |$\nabla$|_us) = (|$\nabla$|_W̃, nothing)
+        (|$\nabla$|_W, |$\nabla$|_us)
+    end
+    W̃, adjoint
+end
+\end{minted}
 
-First, I'll need to build out infrastructure to parallelize training grids, since my current code only trains on a single node.
-Implementing this from scratch would be a herculean task, so I intend to leverage the Dask (\url{https://dask.org/}) python library.
+Implementing the floating-point version was easy and resulted in very neat code, probably the most "mathematical" machine learning code the author has ever written. (Mathematical to a fault, in fact. One funny bug we found was that our convolution code only gave the same results as Flux when we flipped the kernel. This turned out to be because the Flux \texttt{Conv} layer performs \textbf{actual} convolution; we were looking for the operator wrongly referred to as convolution in most of the machine learning literature, which Flux correctly terms \texttt{CrossCor}).
 
-Dask is a very widely-used distributed data science library. It allows users to define a grid -- or, more generally, a DAG -- of
-tasks. A "task" can be any idempotent python function which returns a python object; for example, an epoch of network training.
-Outputs from one task can be fed to later tasks.
+CUDAnative was unfortunately significantly harder to work with. The primary issue was that some error in the tech stack caused a segfault when our code was run under \texttt{nvprof} and \texttt{nsys} (NVIDIA's tools for profiling CUDA code). It's not clear whether the issue is in the hardware we used, the OS, the driver, \texttt{nvprof}, or Julia itself. Despite several days of debugging, we were unable to resolve it. This meant that we were unable to acquire anything more than basic timing information for our kernels. This made optimizing the kernels extremely difficult, since we weren't sure where the bottlenecks were.
 
-Once you've defined your DAG, you boot up a set of machines, have them all connect to a supervisor machine, and submit your DAG. Dask will then
-evaluate it in parallel across all the machines, transparently handling node failure and reporting of intermediate results. This works
-with hardware accelerators on the machines; you just use whatever python libraries you normally would.
+In addition, CUDAnative only supports a subset of Julia. For example, any code which calls string formatting implicitly relies on the Julia runtime, which CUDAnative will reject. This wouldn't seem like a huge problem, except that many error paths rely on string formatting to print errors. This means that a lot of seemingly innocuous code will cause CUDAnative to fail.
+ This issue is compounded by the fact that CUDAnative's diagnostics can also be very difficult to understand. Often they aren't clear about which line of code caused an error, even when tools like \texttt{@device\_code\_warntype} is used.
 
-I'm hoping dask will make it quite straightforward to parallelize my current grid evaluation code. My rough timeline is:
+These issues led to our being unable to use shared memory. We had to reimplement several tools from base Julia (such as \texttt{CartesianIndex}) and write some custom helper functions in order to copy chunks of our input arrays to shared memory. This code was \textbf{correct}; we were able to verify that it wrote and read the correct values. However, it didn't result in any speedup. Somewhere we were performing an operation that lacked mechanical sympathy. However, since we couldn't use a profiler, we didn't know which operation that was.
 
-\begin{itemize}
-\item 1 week: setup training in parallel with Dask on TPU
-\item 1 week: make sure training is replicating previous results + answer question 1
-\item 1 week: answer questions 2 + 3
-\item 1 week: answer question 4
-\end{itemize}
-
-We'll see how well this goes.
-
+CUDAnative is extremely powerful, and allows many low-level operations to be implemented in ways that synchronize harmoniously with Flux and CuArrays. Unfortunately, some issues in the tech stack prevented us from using it to its full potential. Still, working on the project was very informative, and we look forward to leveraging this tech stack in the future once some of the kinks are ironed out.
 
 \section{Future work}
-\label{sec:orgc971220}
-Here's some brief descriptions of potential future work after this round of experiments.
+\label{sec:orgfb3256a}
+If we were to continue working on this project, we would first want to get shared memory working, perhaps by running the code under \texttt{nvprof} on several CUDA-enabled machines until we can find one that works.
+After that, we'd like to optimize the kernels further, and then integrate our binary and floating point implementations, and see what optimizations that enables.
+One optimization we're particularly curious about would be fusing the convolution, batchnorm, relu, and quantization kernels. This would mean that only packed bits would need to be written to global memory, with all floating-point numbers used in the kernel kept in shared memory, minimizing the necessary global memory bandwidth.
 
-\subsection{Can pruning be combined with other network augmentations?}
-\label{sec:org696201c}
-Recent work has suggested that removing BatchNorm layers \citep{BatchNormBad} and regularizing network filters to have lipschitz constants less than 1 \citep{ParsevalNetworks} can significantly improve adversarial robustness when combined with adversarial training. It would be interesting
-to see whether these augmentations can be combined with pruning. It might be necessary to add other regularizations such as Dropout when removing
-BatchNorm on very wide layers.
+One other interesting direction of development would be the development of a tool like CUB (\url{https://nvlabs.github.io/cub/}) for Julia/CUDAnative. CUB provides a number of thread-cooperative algorithms that can be used directly within CUDA kernels. Having access to a tool like that would make CUDAnative significantly easier to use, and allow faster development of high-performance kernels.
 
-\subsection{Pruning rates under nonsense datasets}
-\label{sec:orgb75c7a5}
-Swapping out either the inputs or labels of a training dataset for random values can show a variety of results. \citep{NotBugsFeatures} trained a network on reassigned adversarial labels to show that adversarial features are predictive; other works
-have studied the capacity of networks for memorization under random features and labels.
-
-Studying possible pruning rates in this setting would let me study how relatively "difficult" different tasks are, in terms of necessary parameter counts.
-
-An alternative metric to investigate would be Network Dissection IoU \citep{netdissect2017}, or the modified netdissect IoU termed "network consistency" developed in \citep{AdvTowardsInterpretability}.
-
-There may also be connections between Network Dissections and the stability work going on in other parts of the lab.
-
-\section{Conclusion}
-\label{sec:orgfb25c79}
-That's my results for this month and my plans for next month. Let me know if you have any feedback.
-
-\bibliography{../notes/literature/everything.bib}
+\newpage
+\bibliography{everything.bib}
 \bibliographystyle{iclr2020_conference}
 \end{document}

@@ -1,4 +1,4 @@
-% Created 2019-11-14 Thu 22:35
+% Created 2019-12-16 Mon 10:54
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -14,6 +14,7 @@
 \usepackage{amssymb}
 \usepackage{capt-of}
 \usepackage{hyperref}
+\usepackage{minted}
 \ifdefined\orglatexfragmentpreview
 \else
 \usepackage{iclr2020_conference,times}
@@ -75,11 +76,10 @@
 \maketitle
 \tableofcontents
 
-\textsc{Abstract: A High-Performance Implementation of ABC-Nets in Flux.jl}
-
-James Gilles
-
-\today
+\begin{abstract}
+We implement and evaluate a high-performance implementation of the ABCNet quantization algorithm [[citep:ABCNets]] in Julia [[citep:julialang]] with
+with Flux.jl [[citep:FluxJL]] and CUDAnative.jl [[citep:CUDAnativeJL]].
+\end{abstract}
 
 In the past decade, deep neural networks have achieved rapid uptake in many fields
 and applications. However, deep neural networks require large amounts
@@ -88,6 +88,8 @@ of memory and compute to execute. This prevents them from being deployed in reso
 network training is expensive; Full
 development of a new deep network architecture has been estimated to have an equivalent
 carbon footprint to the lifetime footprint of five consumer cars \citep{EmitCarbon}.
+
+
 
 To address this issue, researchers are looking into techniques for model compression,
 such as \textbf{model quantization}, which reduces the bit-widths used in neural network
@@ -126,7 +128,7 @@ using Flux.jl and CUDAnative.jl \citep{FluxJL}\citep{CUDAnativeJL}. I'll measure
 range of acceptable \(M,N\) values for which ABCNet-convolution is faster than
 32-bit and 16-bit floating point convolution baselines.
 
-I'll train WideResNets \cite{WideResNets}, a widely-used benchmark network,
+I'll train WideResNets \citep{WideResNets}, a widely-used benchmark network,
 using my new quantization primitives, and measure total performance gains / accuracy losses
 on the CIFAR10 dataset.
 
